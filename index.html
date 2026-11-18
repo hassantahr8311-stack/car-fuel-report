@@ -36,7 +36,7 @@
     header {
       background: linear-gradient(135deg, var(--primary-dark), var(--primary));
       color: #fff;
-      padding: 20px 30px;
+      padding: 18px 30px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       display: flex;
       justify-content: space-between;
@@ -57,13 +57,185 @@
       opacity: 0.9;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .badge-offline {
       background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.35);
-      padding: 6px 14px;
+      padding: 7px 14px;
       border-radius: 20px;
       font-size: 13px;
       font-weight: bold;
+    }
+
+    .help-icon-btn {
+      background: #ffffff;
+      color: var(--primary-dark);
+      border: none;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .help-icon-btn:hover {
+      background: #e0f2fe;
+      transform: translateY(-1px);
+    }
+
+    .help-icon-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* نافذة شرح الموقع (Modal) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+      border: 1px solid #cbd5e1;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: #fff;
+      padding: 16px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .modal-body {
+      padding: 22px;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .guide-step {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-right: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .guide-step-num {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .guide-step-content h4 {
+      margin: 0 0 4px;
+      color: var(--primary-dark);
+      font-size: 15px;
+    }
+
+    .guide-step-content p {
+      margin: 0;
+      color: #334155;
+      font-size: 13.5px;
+    }
+
+    .cols-badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .col-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 12.5px;
+    }
+
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid #e2e8f0;
+      text-align: left;
+      background: #f8fafc;
     }
 
     .container {
@@ -296,7 +468,7 @@
       body {
         background: #fff;
       }
-      header, .no-print {
+      header, .no-print, .modal-overlay {
         display: none !important;
       }
       .container {
@@ -357,8 +529,71 @@
       <h1>نظام استخراج تقارير استهلاك السيارات</h1>
       <p>قراءة ملفات الإكسل متعددة الشيتات واستخراج التقارير التفصيلية والتجميعية وحفظها على سطح المكتب</p>
     </div>
-    <div class="badge-offline">يعمل 100% بدون إنترنت</div>
+    <div class="header-actions">
+      <button type="button" class="help-icon-btn" onclick="openHelpModal()" title="اضغط لعرض شرح كامل لوظيفة الموقع وطريقة الاستخدام">
+        <span class="help-icon-circle">؟</span>
+        <span>وصف وشرح عمل الموقع</span>
+      </button>
+      <div class="badge-offline">يعمل 100% بدون إنترنت</div>
+    </div>
   </header>
+
+  <!-- نافذة شرح ووصف عمل الموقع -->
+  <div class="modal-overlay no-print" id="helpModal" onclick="if(event.target === this) closeHelpModal()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>دليل ووصف عمل نظام استخراج تقارير استهلاك السيارات</h2>
+        <button type="button" class="modal-close" onclick="closeHelpModal()" title="إغلاق">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-top: 0; font-weight: bold; color: var(--primary-dark);">
+          نبذة عن الموقع:
+        </p>
+        <p style="margin-top: 4px; margin-bottom: 16px;">
+          هذا التطبيق عبارة عن أداة مكتبية ذكية مبرمجة في ملف واحد تعمل <strong>بالكامل بدون اتصال بالإنترنت</strong>، صُممت لقراءة ملفات الإكسل (<code>.xlsx</code>) الخاصة بحركة واستهلاك الوقود للسيارات — سواء كانت في شيت واحد أو مقسمة على عدة شيتات (مثل 12 شيت لشهور السنة) — واستخراج تقارير فورية دقيقة وحفظها على جهازك بضغطة زر.
+        </p>
+
+        <div class="guide-step">
+          <div class="guide-step-num">1</div>
+          <div class="guide-step-content">
+            <h4>تجهيز ورفع ملف الإكسل (.xlsx)</h4>
+            <p>ارفع ملف البيانات من جهازك (أو حمّل النموذج التجريبي). يتعرف النظام تلقائياً على الأعمدة التالية في أي شيت:</p>
+            <div class="cols-badge-list">
+              <span class="col-badge">اليوم</span>
+              <span class="col-badge">التاريخ</span>
+              <span class="col-badge">رقم السيارة</span>
+              <span class="col-badge">الاستهلاك</span>
+              <span class="col-badge">ملاحظات</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="guide-step-num">2</div>
+          <div class="guide-step-content">
+            <h4>تصفية البيانات واختيار نوع التقرير</h4>
+            <p>يمكنك الفلترة حسب <strong>الشيت / الشهر</strong> (أو جميع الشيتات معاً)، واختيار <strong>رقم سيارة محددة</strong> أو جميع السيارات، وتحديد <strong>فترة زمنية (من تاريخ - إلى تاريخ)</strong>، مع التبديل بين:</p>
+            <p style="margin-top: 4px;">• <strong>التقرير التفصيلي:</strong> يعرض كل حركة يومية بالتفصيل والملاحظات.<br>• <strong>التقرير التجميعي:</strong> يجمع إجمالي الاستهلاك وعدد الأيام ومتوسط الاستهلاك لكل سيارة.</p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="guide-step-num">3</div>
+          <div class="guide-step-content">
+            <h4>حفظ المخرجات على سطح المكتب (Excel أو PDF)</h4>
+            <p>بعد معاينة الإحصائيات والجدول، اضغط على <strong>"حفظ التقرير كملف إكسل (.xlsx)"</strong> لتنزيل ملف إكسل منسق وجاهز، أو اضغط على <strong>"طباعة التقرير / حفظ كـ PDF"</strong> لطباعته مباشرة بترويسة رسمية وخانات التوقيع والاعتماد.</p>
+          </div>
+        </div>
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px 14px; border-radius: 8px; font-size: 13px;">
+          <strong>الخصوصية والأمان:</strong> جميع البيانات تُعالج محلياً داخل متصفحك فقط، ولا يتم رفع أو إرسال أي ملفات إلى أي خادم خارجي.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeHelpModal()">فهمت، إغلاق الشرح</button>
+      </div>
+    </div>
+  </div>
 
   <div class="container">
     <!-- قسم رفع الملف -->
@@ -481,6 +716,19 @@
   </div>
 
   <script>
+    // دوال فتح وإغلاق نافذة شرح عمل الموقع
+    function openHelpModal() {
+      document.getElementById("helpModal").classList.add("open");
+    }
+
+    function closeHelpModal() {
+      document.getElementById("helpModal").classList.remove("open");
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeHelpModal();
+    });
+
     // =========================================================================
     // محرك قراءة وكتابة ملفات Excel (.xlsx) مدمج بالكامل بدون إنترنت (Pure JS)
     // يدعم الترميز العربي UTF-8 بالكامل والشيتات المتعددة وصيغ التواريخ والأرقام
@@ -536,7 +784,6 @@
           if (view.getUint32(cdOffset, true) !== 0x02014b50) break;
           const compression = view.getUint16(cdOffset + 10, true);
           const compSize = view.getUint32(cdOffset + 20, true);
-          const uncompSize = view.getUint32(cdOffset + 24, true);
           const fileNameLen = view.getUint16(cdOffset + 28, true);
           const extraLen = view.getUint16(cdOffset + 30, true);
           const commentLen = view.getUint16(cdOffset + 32, true);
@@ -811,7 +1058,6 @@
       }
 
       function writeWorkbook(sheetsData, filename) {
-        // sheetsData: [{ name: "اسم الشيت", rows: [[...], [...]] }]
         let sheetRowsXmlList = sheetsData.map((sheet) => {
           let rowsXml = "";
           sheet.rows.forEach((row, rIdx) => {
@@ -942,7 +1188,6 @@
     let currentFiltered = [];
     let currentSummary = [];
 
-    // توحيد الأرقام العربية الهندية (٠١٢٣٤٥٦٧٨٩) إلى أرقام قياسية (0123456789) عند الحساب
     function normalizeArabicDigits(str) {
       return String(str ?? "")
         .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
@@ -950,10 +1195,9 @@
         .trim();
     }
 
-    // توحيد الحروف العربية لمطابقة أسماء الأعمدة بدقة
     function normalizeArabicText(str) {
       return String(str ?? "")
-        .replace(/[\u064B-\u065F]/g, "") // إزالة التشكيل
+        .replace(/[\u064B-\u065F]/g, "")
         .replace(/[أإآ]/g, "ا")
         .replace(/ة/g, "ه")
         .replace(/ى/g, "ي")
@@ -974,12 +1218,10 @@
         return PureXLSX.excelSerialToISO(val);
       }
       const s = normalizeArabicDigits(val);
-      // صيغة YYYY-MM-DD أو YYYY/MM/DD
       let m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
       if (m) {
         return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
       }
-      // صيغة DD/MM/YYYY أو DD-MM-YYYY
       m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
       if (m) {
         return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
@@ -1001,7 +1243,6 @@
       return map;
     }
 
-    // السحب والإفلات
     const dropZone = document.getElementById("dropZone");
     dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
@@ -1045,7 +1286,6 @@
         for (const sheet of sheets) {
           if (!sheet.rows || sheet.rows.length < 2) continue;
 
-          // البحث عن صف العناوين في أول 10 صفوف
           let headerRowIdx = -1;
           let colMap = null;
           for (let r = 0; r < Math.min(10, sheet.rows.length); r++) {
@@ -1094,7 +1334,6 @@
           throw new Error("لم يتم العثور على بيانات مطابقة للأعمدة المطلوبة (اليوم، التاريخ، رقم السيارة، الاستهلاك، ملاحظات).");
         }
 
-        // تعبئة القوائم المنسدلة
         const sheetSelect = document.getElementById("sheetFilter");
         sheetSelect.innerHTML = `<option value="__ALL__">جميع الشيتات (${sheetNamesWithData.length})</option>`;
         sheetNamesWithData.forEach(name => {
@@ -1149,11 +1388,9 @@
         return true;
       });
 
-      // حساب الإحصائيات
       const totalConsumption = currentFiltered.reduce((sum, r) => sum + r.consumption, 0);
       const uniqueCarsSet = new Set(currentFiltered.map(r => r.car));
 
-      // بناء التقرير التجميعي لكل سيارة
       const summaryMap = new Map();
       currentFiltered.forEach(r => {
         if (!summaryMap.has(r.car)) {
@@ -1165,7 +1402,6 @@
       });
       currentSummary = Array.from(summaryMap.values()).sort((a, b) => b.total - a.total);
 
-      // تحديث بطاقات المؤشرات (KPIs)
       document.getElementById("kpiTotal").textContent = formatNum(totalConsumption);
       document.getElementById("kpiCars").textContent = uniqueCarsSet.size;
 
@@ -1183,7 +1419,6 @@
         renderSummaryTable(totalConsumption);
       }
 
-      // تحديث ترويسة الطباعة
       const today = new Date().toLocaleDateString("ar-EG");
       document.getElementById("printDate").textContent = "تاريخ الطباعة: " + today;
       document.getElementById("printReportTitle").textContent =
