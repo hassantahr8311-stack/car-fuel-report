@@ -4,7 +4,55 @@
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام استخراج تقارير استهلاك السيارات (يعمل بدون إنترنت)</title>
+  <title>نظام استخراج تقارير استهلاك السيارات (يعمل بدون إنترنت + Firebase)</title>
+  
+  <!-- ربط مكتبات Firebase السحابية (Firestore) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0MbPYfZgOavqJ3oezzi0AS0FhdpicVys",
+      authDomain: "car-fuel-reports.firebaseapp.com",
+      projectId: "car-fuel-reports",
+      storageBucket: "car-fuel-reports.appspot.com",
+      messagingSenderId: "282769183732",
+      appId: "1:282769183732:web:ad5813fd1fbd781fb95fa1",
+      measurementId: "G-MG8TBE8GW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // دالة حفظ السجلات سحابياً في Firestore
+    window.saveDataToFirebase = async function(records) {
+      try {
+        const count = records.length;
+        if (!confirm(`هل تريد بالتأكيد رفع وحفظ (${count}) سجل إلى سحابة Firebase؟`)) return;
+        
+        const statusEl = document.getElementById("fileStatus");
+        statusEl.textContent = "جاري رفع البيانات إلى سحابة Firebase...";
+
+        for (const record of records) {
+          await addDoc(collection(db, "car_fuel_reports"), {
+            sheet: record.sheet,
+            day: record.day,
+            date: record.date,
+            car: record.car,
+            consumption: record.consumption,
+            notes: record.notes,
+            createdAt: new Date().toISOString()
+          });
+        }
+        statusEl.textContent = `تم رفع وحفظ ${count} سجل بنجاح إلى سحابة Firebase!`;
+        alert("تم الحفظ السحابي بنجاح!");
+      } catch (e) {
+        console.error("خطأ في الرفع السحابي: ", e);
+        alert("حدث خطأ أثناء الرفع السحابي. تأكد من ضبط قواعد الأمان (Firestore Rules).");
+      }
+    };
+  </script>
+
   <style>
     :root {
       --primary: #0f4c81;
@@ -19,506 +67,94 @@
       --success: #16a34a;
     }
 
-    * {
-      box-sizing: border-box;
-      font-family: "Tahoma", "Segoe UI", "Arial", sans-serif;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: var(--bg);
-      color: var(--text);
-      direction: rtl;
-      text-align: right;
-    }
+    * { box-sizing: border-box; font-family: "Tahoma", "Segoe UI", "Arial", sans-serif; }
+    body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); direction: rtl; text-align: right; }
 
     header {
       background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-      color: #fff;
-      padding: 18px 30px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
+      color: #fff; padding: 18px 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
     }
+    header h1 { margin: 0; font-size: 22px; font-weight: bold; }
+    header p { margin: 4px 0 0; font-size: 13px; opacity: 0.9; }
 
-    header h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: bold;
-    }
-
-    header p {
-      margin: 4px 0 0;
-      font-size: 13px;
-      opacity: 0.9;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .badge-offline {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.35);
-      padding: 7px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
-    }
-
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .badge-offline { background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.35); padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+    
     .help-icon-btn {
-      background: #ffffff;
-      color: var(--primary-dark);
-      border: none;
-      padding: 7px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      transition: transform 0.15s, background 0.2s;
+      background: #ffffff; color: var(--primary-dark); border: none; padding: 7px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); transition: transform 0.15s, background 0.2s;
     }
+    .help-icon-btn:hover { background: #e0f2fe; transform: translateY(-1px); }
+    .help-icon-circle { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 14px; font-weight: bold; }
 
-    .help-icon-btn:hover {
-      background: #e0f2fe;
-      transform: translateY(-1px);
-    }
+    /* نافذة الشرح (Modal) */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 12px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25); border: 1px solid #cbd5e1; }
+    .modal-header { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .modal-close { background: rgba(255, 255, 255, 0.2); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; }
+    .modal-body { padding: 22px; line-height: 1.7; font-size: 14px; }
+    .guide-step { display: flex; gap: 14px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-right: 4px solid var(--primary); border-radius: 8px; padding: 12px 14px; }
+    .guide-step-num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .cols-badge-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .col-badge { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 10px; border-radius: 6px; font-weight: bold; font-size: 12.5px; }
+    .modal-footer { padding: 14px 22px; border-top: 1px solid #e2e8f0; text-align: left; background: #f8fafc; }
 
-    .help-icon-circle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      font-size: 14px;
-      font-weight: bold;
-    }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 16px 40px; }
+    .card { background: var(--card); border-radius: 10px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06); border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 20px; }
+    .card-title { font-size: 16px; font-weight: bold; color: var(--primary); margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
 
-    /* نافذة شرح الموقع (Modal) */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.65);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
+    .upload-box { border: 2px dashed var(--primary); background: #f8fafc; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: background 0.2s; }
+    .upload-box:hover { background: #eff6ff; }
+    .upload-box input[type="file"] { display: none; }
+    .upload-btn { display: inline-block; background: var(--primary); color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 8px; }
 
-    .modal-overlay.open {
-      display: flex;
-    }
+    .file-status { margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--success); }
+    .error-msg { margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--danger); background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 6px; display: none; }
 
-    .modal-box {
-      background: #fff;
-      border-radius: 12px;
-      max-width: 720px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
-      border: 1px solid #cbd5e1;
-      animation: fadeIn 0.2s ease-out;
-    }
+    .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; align-items: end; }
+    .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text); }
+    .form-group select, .form-group input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); direction: rtl; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.96); }
-      to { opacity: 1; transform: scale(1); }
-    }
+    .actions-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+    .btn { border: none; border-radius: 6px; padding: 10px 18px; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-excel { background: #15803d; color: #fff; }
+    .btn-print { background: #334155; color: #fff; }
+    .btn-cloud { background: #ea580c; color: #fff; }
+    .btn-reset { background: #e2e8f0; color: #1e293b; }
 
-    .modal-header {
-      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-      color: #fff;
-      padding: 16px 22px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .kpi-card { background: #f8fafc; border: 1px solid #cbd5e1; border-right: 5px solid var(--primary); border-radius: 8px; padding: 14px 16px; }
+    .kpi-card.accent { border-right-color: var(--accent); }
+    .kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .kpi-value { font-size: 22px; font-weight: bold; color: var(--primary-dark); }
 
-    .modal-header h2 {
-      margin: 0;
-      font-size: 18px;
-    }
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: right; }
+    th { background-color: var(--primary); color: #fff; font-weight: bold; white-space: nowrap; }
+    tr:nth-child(even) td { background-color: #f8fafc; }
+    tfoot td { background-color: #e2e8f0 !important; font-weight: bold; color: var(--primary-dark); }
 
-    .modal-close {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: #fff;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .modal-close:hover {
-      background: rgba(255, 255, 255, 0.35);
-    }
-
-    .modal-body {
-      padding: 22px;
-      line-height: 1.7;
-      font-size: 14px;
-    }
-
-    .guide-step {
-      display: flex;
-      gap: 14px;
-      margin-bottom: 16px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-right: 4px solid var(--primary);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-
-    .guide-step-num {
-      flex-shrink: 0;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-    }
-
-    .guide-step-content h4 {
-      margin: 0 0 4px;
-      color: var(--primary-dark);
-      font-size: 15px;
-    }
-
-    .guide-step-content p {
-      margin: 0;
-      color: #334155;
-      font-size: 13.5px;
-    }
-
-    .cols-badge-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .col-badge {
-      background: #e0f2fe;
-      color: #0369a1;
-      border: 1px solid #bae6fd;
-      padding: 3px 10px;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 12.5px;
-    }
-
-    .modal-footer {
-      padding: 14px 22px;
-      border-top: 1px solid #e2e8f0;
-      text-align: left;
-      background: #f8fafc;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 24px auto;
-      padding: 0 16px 40px;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
-      border: 1px solid #e2e8f0;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .card-title {
-      font-size: 16px;
-      font-weight: bold;
-      color: var(--primary);
-      margin: 0 0 14px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-
-    .upload-box {
-      border: 2px dashed var(--primary);
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .upload-box:hover {
-      background: #eff6ff;
-    }
-
-    .upload-box input[type="file"] {
-      display: none;
-    }
-
-    .upload-btn {
-      display: inline-block;
-      background: var(--primary);
-      color: #fff;
-      padding: 10px 22px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-
-    .file-status {
-      margin-top: 12px;
-      font-size: 14px;
-      font-weight: bold;
-      color: var(--success);
-    }
-
-    .error-msg {
-      margin-top: 12px;
-      font-size: 14px;
-      font-weight: bold;
-      color: var(--danger);
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      padding: 10px 14px;
-      border-radius: 6px;
-      display: none;
-    }
-
-    .filters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
-      align-items: end;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: bold;
-      margin-bottom: 6px;
-      color: var(--text);
-    }
-
-    .form-group select,
-    .form-group input {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 14px;
-      background: #fff;
-      color: var(--text);
-      direction: rtl;
-    }
-
-    .actions-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-      padding-top: 14px;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .btn {
-      border: none;
-      border-radius: 6px;
-      padding: 10px 18px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity 0.2s;
-    }
-
-    .btn:hover {
-      opacity: 0.9;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: #fff;
-    }
-
-    .btn-excel {
-      background: #15803d;
-      color: #fff;
-    }
-
-    .btn-print {
-      background: #334155;
-      color: #fff;
-    }
-
-    .btn-reset {
-      background: #e2e8f0;
-      color: #1e293b;
-    }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    .kpi-card {
-      background: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-right: 5px solid var(--primary);
-      border-radius: 8px;
-      padding: 14px 16px;
-    }
-
-    .kpi-card.accent {
-      border-right-color: var(--accent);
-    }
-
-    .kpi-label {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-
-    .kpi-value {
-      font-size: 22px;
-      font-weight: bold;
-      color: var(--primary-dark);
-    }
-
-    .table-wrapper {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-      background: #fff;
-    }
-
-    th, td {
-      border: 1px solid #cbd5e1;
-      padding: 10px 12px;
-      text-align: right;
-    }
-
-    th {
-      background-color: var(--primary);
-      color: #fff;
-      font-weight: bold;
-      white-space: nowrap;
-    }
-
-    tr:nth-child(even) td {
-      background-color: #f8fafc;
-    }
-
-    tfoot td {
-      background-color: #e2e8f0 !important;
-      font-weight: bold;
-      color: var(--primary-dark);
-    }
-
-    .print-header, .print-footer {
-      display: none;
-    }
-
-    .sample-link {
-      background: none;
-      border: none;
-      color: var(--primary);
-      text-decoration: underline;
-      cursor: pointer;
-      font-size: 13px;
-      margin-top: 8px;
-      font-weight: bold;
-    }
+    .print-header, .print-footer { display: none; }
+    .sample-link { background: none; border: none; color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 13px; margin-top: 8px; font-weight: bold; }
 
     @media print {
-      body {
-        background: #fff;
-      }
-      header, .no-print, .modal-overlay {
-        display: none !important;
-      }
-      .container {
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      .card {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-      }
-      .print-header {
-        display: block;
-        border-bottom: 2px solid #000;
-        padding-bottom: 12px;
-        margin-bottom: 16px;
-      }
-      .print-header-top {
-        display: flex;
-        justify-content: space-between;
-        font-weight: bold;
-        font-size: 14px;
-        margin-bottom: 10px;
-      }
-      .print-title {
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold;
-        margin: 6px 0;
-      }
-      .print-meta {
-        text-align: center;
-        font-size: 13px;
-        color: #333;
-      }
-      .print-footer {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 40px;
-        font-weight: bold;
-        font-size: 14px;
-        padding: 0 30px;
-      }
-      th {
-        background-color: #e2e8f0 !important;
-        color: #000 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
+      body { background: #fff; }
+      header, .no-print, .modal-overlay { display: none !important; }
+      .container { max-width: 100%; margin: 0; padding: 0; }
+      .card { box-shadow: none; border: none; padding: 0; }
+      .print-header { display: block; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
+      .print-header-top { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+      .print-title { text-align: center; font-size: 18px; font-weight: bold; margin: 6px 0; }
+      .print-meta { text-align: center; font-size: 13px; color: #333; }
+      .print-footer { display: flex; justify-content: space-between; margin-top: 40px; font-weight: bold; font-size: 14px; padding: 0 30px; }
+      th { background-color: #e2e8f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -527,66 +163,50 @@
   <header class="no-print">
     <div>
       <h1>نظام استخراج تقارير استهلاك السيارات</h1>
-      <p>قراءة ملفات الإكسل متعددة الشيتات واستخراج التقارير التفصيلية والتجميعية وحفظها على سطح المكتب</p>
+      <p>قراءة ملفات الإكسل وحفظ التقارير محلياً وسحابياً على Firebase</p>
     </div>
     <div class="header-actions">
-      <button type="button" class="help-icon-btn" onclick="openHelpModal()" title="اضغط لعرض شرح كامل لوظيفة الموقع وطريقة الاستخدام">
+      <button type="button" class="help-icon-btn" onclick="openHelpModal()">
         <span class="help-icon-circle">؟</span>
         <span>وصف وشرح عمل الموقع</span>
       </button>
-      <div class="badge-offline">يعمل 100% بدون إنترنت</div>
+      <div class="badge-offline">يعمل محلياً + Firebase</div>
     </div>
   </header>
 
-  <!-- نافذة شرح ووصف عمل الموقع -->
+  <!-- نافذة الشرح -->
   <div class="modal-overlay no-print" id="helpModal" onclick="if(event.target === this) closeHelpModal()">
     <div class="modal-box">
       <div class="modal-header">
         <h2>دليل ووصف عمل نظام استخراج تقارير استهلاك السيارات</h2>
-        <button type="button" class="modal-close" onclick="closeHelpModal()" title="إغلاق">×</button>
+        <button type="button" class="modal-close" onclick="closeHelpModal()">×</button>
       </div>
       <div class="modal-body">
-        <p style="margin-top: 0; font-weight: bold; color: var(--primary-dark);">
-          نبذة عن الموقع:
-        </p>
-        <p style="margin-top: 4px; margin-bottom: 16px;">
-          هذا التطبيق عبارة عن أداة مكتبية ذكية مبرمجة في ملف واحد تعمل <strong>بالكامل بدون اتصال بالإنترنت</strong>، صُممت لقراءة ملفات الإكسل (<code>.xlsx</code>) الخاصة بحركة واستهلاك الوقود للسيارات — سواء كانت في شيت واحد أو مقسمة على عدة شيتات (مثل 12 شيت لشهور السنة) — واستخراج تقارير فورية دقيقة وحفظها على جهازك بضغطة زر.
-        </p>
-
+        <p style="margin-top: 0; font-weight: bold; color: var(--primary-dark);">نبذة عن الموقع:</p>
+        <p>أداة مكتبية مبرمجة في ملف واحد لقراءة ملفات الإكسل (<code>.xlsx</code>) للسيارات، تصفيتها، واستخراج تقارير دقيقة مع إمكانية الحفظ المحلي أو الرفع السحابي على Firebase.</p>
         <div class="guide-step">
           <div class="guide-step-num">1</div>
-          <div class="guide-step-content">
-            <h4>تجهيز ورفع ملف الإكسل (.xlsx)</h4>
-            <p>ارفع ملف البيانات من جهازك (أو حمّل النموذج التجريبي). يتعرف النظام تلقائياً على الأعمدة التالية في أي شيت:</p>
+          <div>
+            <h4>رفع ملف الإكسل</h4>
+            <p>يتعرف النظام تلقائياً على الأعمدة: اليوم، التاريخ، رقم السيارة، الاستهلاك، ملاحظات.</p>
             <div class="cols-badge-list">
-              <span class="col-badge">اليوم</span>
-              <span class="col-badge">التاريخ</span>
-              <span class="col-badge">رقم السيارة</span>
-              <span class="col-badge">الاستهلاك</span>
-              <span class="col-badge">ملاحظات</span>
+              <span class="col-badge">اليوم</span><span class="col-badge">التاريخ</span><span class="col-badge">رقم السيارة</span><span class="col-badge">الاستهلاك</span><span class="col-badge">ملاحظات</span>
             </div>
           </div>
         </div>
-
         <div class="guide-step">
           <div class="guide-step-num">2</div>
-          <div class="guide-step-content">
-            <h4>تصفية البيانات واختيار نوع التقرير</h4>
-            <p>يمكنك الفلترة حسب <strong>الشيت / الشهر</strong> (أو جميع الشيتات معاً)، واختيار <strong>رقم سيارة محددة</strong> أو جميع السيارات، وتحديد <strong>فترة زمنية (من تاريخ - إلى تاريخ)</strong>، مع التبديل بين:</p>
-            <p style="margin-top: 4px;">• <strong>التقرير التفصيلي:</strong> يعرض كل حركة يومية بالتفصيل والملاحظات.<br>• <strong>التقرير التجميعي:</strong> يجمع إجمالي الاستهلاك وعدد الأيام ومتوسط الاستهلاك لكل سيارة.</p>
+          <div>
+            <h4>التصفية والتقارير</h4>
+            <p>فلترة حسب الشيت، رقم السيارة، أو الفترة الزمنية، والتبديل بين التقرير التفصيلي والتجميعي.</p>
           </div>
         </div>
-
         <div class="guide-step">
           <div class="guide-step-num">3</div>
-          <div class="guide-step-content">
-            <h4>حفظ المخرجات على سطح المكتب (Excel أو PDF)</h4>
-            <p>بعد معاينة الإحصائيات والجدول، اضغط على <strong>"حفظ التقرير كملف إكسل (.xlsx)"</strong> لتنزيل ملف إكسل منسق وجاهز، أو اضغط على <strong>"طباعة التقرير / حفظ كـ PDF"</strong> لطباعته مباشرة بترويسة رسمية وخانات التوقيع والاعتماد.</p>
+          <div>
+            <h4>الحفظ سحابياً أو محلياً</h4>
+            <p>تصدير كملف إكسل، طباعة PDF، أو حفظ السجلات مباشرة على قاعدة بيانات Firebase السحابية.</p>
           </div>
-        </div>
-
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px 14px; border-radius: 8px; font-size: 13px;">
-          <strong>الخصوصية والأمان:</strong> جميع البيانات تُعالج محلياً داخل متصفحك فقط، ولا يتم رفع أو إرسال أي ملفات إلى أي خادم خارجي.
         </div>
       </div>
       <div class="modal-footer">
@@ -596,46 +216,32 @@
   </div>
 
   <div class="container">
-    <!-- قسم رفع الملف -->
     <div class="card no-print">
       <div class="card-title">1. تحميل ملف الإكسل (البيانات الأساسية)</div>
       <div class="upload-box" id="dropZone" onclick="document.getElementById('excelFile').click()">
-        <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-          اضغط هنا لاختيار ملف الإكسل (.xlsx) أو اسحب الملف وأفلته هنا
-        </div>
-        <div style="font-size: 13px; color: var(--muted);">
-          يدعم الملفات التي تحتوي على شيت واحد أو عدة شيتات (مثل شيتات الشهور) بالأعمدة: اليوم ، التاريخ ، رقم السيارة ، الاستهلاك ، ملاحظات
-        </div>
+        <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">اضغط هنا لاختيار ملف الإكسل (.xlsx) أو اسحب الملف وأفلته هنا</div>
+        <div style="font-size: 13px; color: var(--muted);">يدعم الشيتات المتعددة بالأعمدة: اليوم ، التاريخ ، رقم السيارة ، الاستهلاك ، ملاحظات</div>
         <span class="upload-btn">اختيار ملف إكسل من الجهاز</span>
         <input type="file" id="excelFile" accept=".xlsx" />
       </div>
       <div style="text-align: center;">
-        <button type="button" class="sample-link" onclick="downloadSampleXlsx()">
-          تحميل ملف إكسل تجريبي (نموذج جاهز للاختبار)
-        </button>
+        <button type="button" class="sample-link" onclick="downloadSampleXlsx()">تحميل ملف إكسل تجريبي (نموذج جاهز للاختبار)</button>
       </div>
       <div id="fileStatus" class="file-status"></div>
       <div id="errorMsg" class="error-msg"></div>
     </div>
 
-    <!-- قسم الفلترة وإعداد التقرير -->
     <div class="card no-print" id="controlsCard" style="display: none;">
       <div class="card-title">2. خيارات الفلترة ونوع التقرير</div>
       <div class="filters-grid">
         <div class="form-group">
           <label for="sheetFilter">الشيت / الشهر:</label>
-          <select id="sheetFilter" onchange="applyFilters()">
-            <option value="__ALL__">جميع الشيتات (الكل)</option>
-          </select>
+          <select id="sheetFilter" onchange="applyFilters()"><option value="__ALL__">جميع الشيتات (الكل)</option></select>
         </div>
-
         <div class="form-group">
           <label for="carFilter">رقم السيارة:</label>
-          <select id="carFilter" onchange="applyFilters()">
-            <option value="__ALL__">جميع السيارات</option>
-          </select>
+          <select id="carFilter" onchange="applyFilters()"><option value="__ALL__">جميع السيارات</option></select>
         </div>
-
         <div class="form-group">
           <label for="reportType">نوع التقرير:</label>
           <select id="reportType" onchange="applyFilters()">
@@ -643,12 +249,10 @@
             <option value="summary">تقرير تجميعي (إجمالي لكل سيارة)</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="dateFrom">من تاريخ:</label>
           <input type="date" id="dateFrom" onchange="applyFilters()" />
         </div>
-
         <div class="form-group">
           <label for="dateTo">إلى تاريخ:</label>
           <input type="date" id="dateTo" onchange="applyFilters()" />
@@ -656,19 +260,13 @@
       </div>
 
       <div class="actions-bar">
-        <button type="button" class="btn btn-excel" onclick="exportToExcel()">
-          حفظ التقرير كملف إكسل (.xlsx) على سطح المكتب
-        </button>
-        <button type="button" class="btn btn-print" onclick="window.print()">
-          طباعة التقرير / حفظ كـ PDF
-        </button>
-        <button type="button" class="btn btn-reset" onclick="resetFilters()">
-          إعادة ضبط الفلاتر
-        </button>
+        <button type="button" class="btn btn-excel" onclick="exportToExcel()">حفظ كملف إكسل (.xlsx)</button>
+        <button type="button" class="btn btn-print" onclick="window.print()">طباعة / حفظ PDF</button>
+        <button type="button" class="btn btn-cloud" onclick="uploadCurrentDataToCloud()">حفظ سحابياً (Firebase)</button>
+        <button type="button" class="btn btn-reset" onclick="resetFilters()">إعادة ضبط</button>
       </div>
     </div>
 
-    <!-- قسم عرض التقرير -->
     <div class="card" id="reportCard" style="display: none;">
       <div class="print-header">
         <div class="print-header-top">
@@ -682,22 +280,10 @@
       <div class="card-title no-print">3. معاينة التقرير المستخرج</div>
 
       <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">إجمالي الاستهلاك</div>
-          <div class="kpi-value" id="kpiTotal">0</div>
-        </div>
-        <div class="kpi-card accent">
-          <div class="kpi-label" id="kpiCountLabel">عدد السجلات / الأيام</div>
-          <div class="kpi-value" id="kpiCount">0</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">متوسط الاستهلاك</div>
-          <div class="kpi-value" id="kpiAvg">0</div>
-        </div>
-        <div class="kpi-card accent">
-          <div class="kpi-label">عدد السيارات المشمولة</div>
-          <div class="kpi-value" id="kpiCars">0</div>
-        </div>
+        <div class="kpi-card"><div class="kpi-label">إجمالي الاستهلاك</div><div class="kpi-value" id="kpiTotal">0</div></div>
+        <div class="kpi-card accent"><div class="kpi-label" id="kpiCountLabel">عدد السجلات</div><div class="kpi-value" id="kpiCount">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">متوسط الاستهلاك</div><div class="kpi-value" id="kpiAvg">0</div></div>
+        <div class="kpi-card accent"><div class="kpi-label">عدد السيارات</div><div class="kpi-value" id="kpiCars">0</div></div>
       </div>
 
       <div class="table-wrapper">
@@ -716,70 +302,49 @@
   </div>
 
   <script>
-    // دوال فتح وإغلاق نافذة شرح عمل الموقع
-    function openHelpModal() {
-      document.getElementById("helpModal").classList.add("open");
+    function openHelpModal() { document.getElementById("helpModal").classList.add("open"); }
+    function closeHelpModal() { document.getElementById("helpModal").classList.remove("open"); }
+
+    function uploadCurrentDataToCloud() {
+      if (!allRecords || allRecords.length === 0) {
+        alert("لا توجد بيانات لرفعها.");
+        return;
+      }
+      if (typeof window.saveDataToFirebase === "function") {
+        window.saveDataToFirebase(allRecords);
+      } else {
+        alert("جاري تحميل اتصال Firebase، حاول بعد ثوانٍ قليلة.");
+      }
     }
-
-    function closeHelpModal() {
-      document.getElementById("helpModal").classList.remove("open");
-    }
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeHelpModal();
-    });
-
-    // =========================================================================
-    // محرك قراءة وكتابة ملفات Excel (.xlsx) مدمج بالكامل بدون إنترنت (Pure JS)
-    // يدعم الترميز العربي UTF-8 بالكامل والشيتات المتعددة وصيغ التواريخ والأرقام
-    // =========================================================================
 
     const PureXLSX = (() => {
       const textDecoder = new TextDecoder("utf-8");
       const textEncoder = new TextEncoder();
-
-      // جدول CRC32 لإنشاء ملفات ZIP/XLSX سليمة
       const crcTable = (() => {
         const table = new Uint32Array(256);
         for (let i = 0; i < 256; i++) {
           let c = i;
-          for (let k = 0; k < 8; k++) {
-            c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-          }
+          for (let k = 0; k < 8; k++) { c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); }
           table[i] = c;
         }
         return table;
       })();
-
       function crc32(buf) {
         let crc = 0xFFFFFFFF;
-        for (let i = 0; i < buf.length; i++) {
-          crc = crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
-        }
+        for (let i = 0; i < buf.length; i++) { crc = crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8); }
         return (crc ^ 0xFFFFFFFF) >>> 0;
       }
-
-      // فك ضغط مدخلات ZIP داخل ملف .xlsx باستخدام DecompressionStream المدمج في المتصفحات الحديثة
       async function unzipEntries(arrayBuffer) {
         const view = new DataView(arrayBuffer);
         const bytes = new Uint8Array(arrayBuffer);
         const files = {};
-
-        // البحث عن End of Central Directory (EOCD)
         let eocdOffset = -1;
         for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
-          if (view.getUint32(i, true) === 0x06054b50) {
-            eocdOffset = i;
-            break;
-          }
+          if (view.getUint32(i, true) === 0x06054b50) { eocdOffset = i; break; }
         }
-        if (eocdOffset === -1) {
-          throw new Error("ملف الإكسل غير صالح أو تالف (تعذر قراءة بنية ZIP).");
-        }
-
+        if (eocdOffset === -1) throw new Error("ملف الإكسل غير صالح.");
         const totalEntries = view.getUint16(eocdOffset + 10, true);
         let cdOffset = view.getUint32(eocdOffset + 16, true);
-
         for (let idx = 0; idx < totalEntries; idx++) {
           if (view.getUint32(cdOffset, true) !== 0x02014b50) break;
           const compression = view.getUint16(cdOffset + 10, true);
@@ -788,50 +353,34 @@
           const extraLen = view.getUint16(cdOffset + 30, true);
           const commentLen = view.getUint16(cdOffset + 32, true);
           const localHeaderOffset = view.getUint32(cdOffset + 42, true);
-
           const fileNameBytes = bytes.slice(cdOffset + 46, cdOffset + 46 + fileNameLen);
           const fileName = textDecoder.decode(fileNameBytes);
-
-          // قراءة Local File Header للوصول لبداية البيانات المضغوطة
           const localNameLen = view.getUint16(localHeaderOffset + 26, true);
           const localExtraLen = view.getUint16(localHeaderOffset + 28, true);
           const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
           const compressedData = bytes.slice(dataStart, dataStart + compSize);
-
           if (!fileName.endsWith("/")) {
-            if (compression === 0) {
-              files[fileName] = compressedData;
-            } else if (compression === 8) {
-              if (typeof DecompressionStream === "undefined") {
-                throw new Error("المتصفح قديم جداً ولا يدعم فك ضغط ملفات الإكسل الحديثة. يرجى استخدام Chrome أو Edge.");
-              }
+            if (compression === 0) files[fileName] = compressedData;
+            else if (compression === 8) {
               const ds = new DecompressionStream("deflate-raw");
               const writer = ds.writable.getWriter();
               writer.write(compressedData);
               writer.close();
               const resp = new Response(ds.readable);
-              const ab = await resp.arrayBuffer();
-              files[fileName] = new Uint8Array(ab);
+              files[fileName] = new Uint8Array(await resp.arrayBuffer());
             }
           }
-
           cdOffset += 46 + fileNameLen + extraLen + commentLen;
         }
         return files;
       }
-
-      // تحويل مرجع العمود (مثل A, B, AA) إلى رقم عمود (0-indexed)
       function colLetterToIndex(letters) {
         let col = 0;
-        for (let i = 0; i < letters.length; i++) {
-          col = col * 26 + (letters.charCodeAt(i) - 64);
-        }
+        for (let i = 0; i < letters.length; i++) { col = col * 26 + (letters.charCodeAt(i) - 64); }
         return col - 1;
       }
-
       function indexToColLetter(idx) {
-        let s = "";
-        idx++;
+        let s = ""; idx++;
         while (idx > 0) {
           let mod = (idx - 1) % 26;
           s = String.fromCharCode(65 + mod) + s;
@@ -839,120 +388,79 @@
         }
         return s;
       }
-
-      // قراءة ملف .xlsx واستخراج جميع الشيتات كصفوف
       async function readWorkbook(arrayBuffer) {
         const files = await unzipEntries(arrayBuffer);
         const parser = new DOMParser();
-
-        // 1. قراءة Shared Strings (النصوص المشتركة ومنها النصوص العربية)
         const sharedStrings = [];
         if (files["xl/sharedStrings.xml"]) {
           const ssXml = textDecoder.decode(files["xl/sharedStrings.xml"]);
-          const ssDoc = parser.parseFromString(ssXml, "application/xml");
-          const siNodes = ssDoc.getElementsByTagName("si");
+          const siNodes = parser.parseFromString(ssXml, "application/xml").getElementsByTagName("si");
           for (let i = 0; i < siNodes.length; i++) {
             const tNodes = siNodes[i].getElementsByTagName("t");
             let fullText = "";
-            for (let j = 0; j < tNodes.length; j++) {
-              fullText += tNodes[j].textContent || "";
-            }
+            for (let j = 0; j < tNodes.length; j++) fullText += tNodes[j].textContent || "";
             sharedStrings.push(fullText);
           }
         }
-
-        // 2. قراءة التنسيقات لمعرفة خلايا التواريخ
         const dateStyleIndices = new Set();
         if (files["xl/styles.xml"]) {
-          const stylesXml = textDecoder.decode(files["xl/styles.xml"]);
-          const stylesDoc = parser.parseFromString(stylesXml, "application/xml");
+          const stylesDoc = parser.parseFromString(textDecoder.decode(files["xl/styles.xml"]), "application/xml");
           const customDateFormats = new Set();
           const numFmts = stylesDoc.getElementsByTagName("numFmt");
           for (let i = 0; i < numFmts.length; i++) {
             const id = parseInt(numFmts[i].getAttribute("numFmtId"), 10);
             const code = (numFmts[i].getAttribute("formatCode") || "").toLowerCase();
-            if (/[ymd]/.test(code) && !/h|s/.test(code.replace(/\[.*?\]/g, ""))) {
-              customDateFormats.add(id);
-            } else if (/[ymd]/.test(code)) {
-              customDateFormats.add(id);
-            }
+            if (/[ymd]/.test(code)) customDateFormats.add(id);
           }
           const cellXfs = stylesDoc.getElementsByTagName("cellXfs")[0];
           if (cellXfs) {
             const xfs = cellXfs.getElementsByTagName("xf");
             for (let i = 0; i < xfs.length; i++) {
               const numFmtId = parseInt(xfs[i].getAttribute("numFmtId") || "0", 10);
-              if ((numFmtId >= 14 && numFmtId <= 22) || customDateFormats.has(numFmtId)) {
-                dateStyleIndices.add(i);
-              }
+              if ((numFmtId >= 14 && numFmtId <= 22) || customDateFormats.has(numFmtId)) dateStyleIndices.add(i);
             }
           }
         }
-
-        // 3. قراءة أسماء الشيتات وروابطها
-        if (!files["xl/workbook.xml"]) {
-          throw new Error("تعذر العثور على بيانات الشيتات داخل الملف.");
-        }
-        const wbXml = textDecoder.decode(files["xl/workbook.xml"]);
-        const wbDoc = parser.parseFromString(wbXml, "application/xml");
-
+        const wbDoc = parser.parseFromString(textDecoder.decode(files["xl/workbook.xml"]), "application/xml");
         const relsMap = {};
         if (files["xl/_rels/workbook.xml.rels"]) {
-          const relsXml = textDecoder.decode(files["xl/_rels/workbook.xml.rels"]);
-          const relsDoc = parser.parseFromString(relsXml, "application/xml");
-          const relNodes = relsDoc.getElementsByTagName("Relationship");
+          const relNodes = parser.parseFromString(textDecoder.decode(files["xl/_rels/workbook.xml.rels"]), "application/xml").getElementsByTagName("Relationship");
           for (let i = 0; i < relNodes.length; i++) {
-            const id = relNodes[i].getAttribute("Id");
             let target = relNodes[i].getAttribute("Target") || "";
             if (target.startsWith("/")) target = target.slice(1);
             if (!target.startsWith("xl/")) target = "xl/" + target;
-            relsMap[id] = target;
+            relsMap[relNodes[i].getAttribute("Id")] = target;
           }
         }
-
         const sheetNodes = wbDoc.getElementsByTagName("sheet");
         const sheets = [];
-
         for (let i = 0; i < sheetNodes.length; i++) {
           const name = sheetNodes[i].getAttribute("name") || ("Sheet" + (i + 1));
           const rId = sheetNodes[i].getAttribute("r:id") || sheetNodes[i].getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
           const targetPath = relsMap[rId] || ("xl/worksheets/sheet" + (i + 1) + ".xml");
           if (!files[targetPath]) continue;
-
-          const sheetXml = textDecoder.decode(files[targetPath]);
-          const sheetDoc = parser.parseFromString(sheetXml, "application/xml");
+          const sheetDoc = parser.parseFromString(textDecoder.decode(files[targetPath]), "application/xml");
           const rowNodes = sheetDoc.getElementsByTagName("row");
           const rows = [];
-
           for (let r = 0; r < rowNodes.length; r++) {
             const cNodes = rowNodes[r].getElementsByTagName("c");
             const rowArr = [];
             for (let c = 0; c < cNodes.length; c++) {
               const cell = cNodes[c];
               const ref = cell.getAttribute("r") || "";
-              const colMatch = ref.match(/^([A-Z]+)/);
-              const colIdx = colMatch ? colLetterToIndex(colMatch[1]) : c;
+              const colIdx = ref.match(/^([A-Z]+)/) ? colLetterToIndex(RegExp.$1) : c;
               const type = cell.getAttribute("t");
               const styleIdx = parseInt(cell.getAttribute("s") || "-1", 10);
-
               let val = "";
               if (type === "inlineStr") {
-                const tNode = cell.getElementsByTagName("t")[0];
-                val = tNode ? (tNode.textContent || "") : "";
+                val = cell.getElementsByTagName("t")[0]?.textContent || "";
               } else {
-                const vNode = cell.getElementsByTagName("v")[0];
-                const raw = vNode ? (vNode.textContent || "") : "";
-                if (type === "s") {
-                  val = sharedStrings[parseInt(raw, 10)] ?? "";
-                } else if (type === "str" || type === "b") {
-                  val = raw;
-                } else if (raw !== "") {
+                const raw = cell.getElementsByTagName("v")[0]?.textContent || "";
+                if (type === "s") val = sharedStrings[parseInt(raw, 10)] ?? "";
+                else if (type === "str" || type === "b") val = raw;
+                else if (raw !== "") {
                   const num = Number(raw);
-                  if (!isNaN(num) && dateStyleIndices.has(styleIdx)) {
-                    val = excelSerialToISO(num);
-                  } else {
-                    val = !isNaN(num) ? num : raw;
-                  }
+                  val = (!isNaN(num) && dateStyleIndices.has(styleIdx)) ? excelSerialToISO(num) : (!isNaN(num) ? num : raw);
                 }
               }
               rowArr[colIdx] = val;
@@ -961,274 +469,109 @@
           }
           sheets.push({ name, rows });
         }
-
         return sheets;
       }
-
       function excelSerialToISO(serial) {
-        // تحويل الرقم التسلسلي لتاريخ الإكسل إلى YYYY-MM-DD
         const utcDays = Math.floor(serial - 25569);
         const date = new Date(utcDays * 86400 * 1000);
         if (isNaN(date.getTime())) return String(serial);
-        const y = date.getUTCFullYear();
-        const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-        const d = String(date.getUTCDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
       }
-
-      // إنشاء وتنزيل ملف .xlsx حقيقي بترميز UTF-8 سليم دون أي مكتبات خارجية
       function escapeXml(str) {
-        return String(str ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&apos;");
+        return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
       }
-
       function createZip(fileEntries) {
-        const localParts = [];
-        const centralParts = [];
-        let offset = 0;
-
+        const localParts = []; const centralParts = []; let offset = 0;
         for (const entry of fileEntries) {
           const nameBytes = textEncoder.encode(entry.name);
           const dataBytes = typeof entry.data === "string" ? textEncoder.encode(entry.data) : entry.data;
           const crc = crc32(dataBytes);
-
-          // Local File Header (30 bytes + name)
           const localHeader = new Uint8Array(30 + nameBytes.length);
           const lv = new DataView(localHeader.buffer);
-          lv.setUint32(0, 0x04034b50, true);
-          lv.setUint16(4, 20, true);
-          lv.setUint16(6, 0x0800, true); // UTF-8 flag
-          lv.setUint16(8, 0, true);      // Store (no compression)
-          lv.setUint16(10, 0, true);
-          lv.setUint16(12, 0, true);
-          lv.setUint32(14, crc, true);
-          lv.setUint32(18, dataBytes.length, true);
-          lv.setUint32(22, dataBytes.length, true);
-          lv.setUint16(26, nameBytes.length, true);
-          lv.setUint16(28, 0, true);
-          localHeader.set(nameBytes, 30);
-
+          lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true);
+          lv.setUint16(8, 0, true); lv.setUint32(14, crc, true);
+          lv.setUint32(18, dataBytes.length, true); lv.setUint32(22, dataBytes.length, true);
+          lv.setUint16(26, nameBytes.length, true); localHeader.set(nameBytes, 30);
           localParts.push(localHeader, dataBytes);
 
-          // Central Directory Header (46 bytes + name)
           const centralHeader = new Uint8Array(46 + nameBytes.length);
           const cv = new DataView(centralHeader.buffer);
-          cv.setUint32(0, 0x02014b50, true);
-          cv.setUint16(4, 20, true);
-          cv.setUint16(6, 20, true);
-          cv.setUint16(8, 0x0800, true); // UTF-8 flag
-          cv.setUint16(10, 0, true);
-          cv.setUint16(12, 0, true);
-          cv.setUint16(14, 0, true);
-          cv.setUint32(16, crc, true);
-          cv.setUint32(20, dataBytes.length, true);
-          cv.setUint32(24, dataBytes.length, true);
-          cv.setUint16(28, nameBytes.length, true);
-          cv.setUint16(30, 0, true);
-          cv.setUint16(32, 0, true);
-          cv.setUint16(34, 0, true);
-          cv.setUint16(36, 0, true);
-          cv.setUint32(38, 0, true);
-          cv.setUint32(42, offset, true);
+          cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+          cv.setUint16(8, 0x0800, true); cv.setUint32(16, crc, true);
+          cv.setUint32(20, dataBytes.length, true); cv.setUint32(24, dataBytes.length, true);
+          cv.setUint16(28, nameBytes.length, true); cv.setUint32(42, offset, true);
           centralHeader.set(nameBytes, 46);
-
           centralParts.push(centralHeader);
           offset += localHeader.length + dataBytes.length;
         }
-
         const centralSize = centralParts.reduce((acc, p) => acc + p.length, 0);
         const eocd = new Uint8Array(22);
         const ev = new DataView(eocd.buffer);
-        ev.setUint32(0, 0x06054b50, true);
-        ev.setUint16(4, 0, true);
-        ev.setUint16(6, 0, true);
-        ev.setUint16(8, fileEntries.length, true);
-        ev.setUint16(10, fileEntries.length, true);
-        ev.setUint32(12, centralSize, true);
+        ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, fileEntries.length, true);
+        ev.setUint16(10, fileEntries.length, true); ev.setUint32(12, centralSize, true);
         ev.setUint32(16, offset, true);
-        ev.setUint16(20, 0, true);
-
-        return new Blob([...localParts, ...centralParts, eocd], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
+        return new Blob([...localParts, ...centralParts, eocd], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       }
-
       function writeWorkbook(sheetsData, filename) {
         let sheetRowsXmlList = sheetsData.map((sheet) => {
           let rowsXml = "";
           sheet.rows.forEach((row, rIdx) => {
-            const rNum = rIdx + 1;
-            const styleId = rIdx === 0 ? 1 : (rIdx === sheet.rows.length - 1 && sheet.hasFooter ? 2 : 0);
             let cellsXml = "";
             row.forEach((val, cIdx) => {
-              const ref = indexToColLetter(cIdx) + rNum;
-              if (typeof val === "number" && !isNaN(val)) {
-                cellsXml += `<c r="${ref}" s="${styleId}"><v>${val}</v></c>`;
-              } else {
-                cellsXml += `<c r="${ref}" t="inlineStr" s="${styleId}"><is><t>${escapeXml(val)}</t></is></c>`;
-              }
+              const ref = indexToColLetter(cIdx) + (rIdx + 1);
+              if (typeof val === "number" && !isNaN(val)) cellsXml += `<c r="${ref}"><v>${val}</v></c>`;
+              else cellsXml += `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(val)}</t></is></c>`;
             });
-            rowsXml += `<row r="${rNum}">${cellsXml}</row>`;
+            rowsXml += `<row r="${rIdx + 1}">${cellsXml}</row>`;
           });
-          return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>
-  <sheetData>${rowsXml}</sheetData>
-</worksheet>`;
+          return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1"/></sheetViews><sheetData>${rowsXml}</sheetData></worksheet>`;
         });
-
-        const contentTypesOverrides = sheetsData.map((_, i) =>
-          `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
-        ).join("");
-
-        const workbookSheetsXml = sheetsData.map((s, i) =>
-          `<sheet name="${escapeXml(s.name.slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`
-        ).join("");
-
-        const workbookRelsXml = sheetsData.map((_, i) =>
-          `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`
-        ).join("");
-
         const files = [
-          {
-            name: "[Content_Types].xml",
-            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  ${contentTypesOverrides}
-</Types>`
-          },
-          {
-            name: "_rels/.rels",
-            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`
-          },
-          {
-            name: "xl/workbook.xml",
-            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets>${workbookSheetsXml}</sheets>
-</workbook>`
-          },
-          {
-            name: "xl/_rels/workbook.xml.rels",
-            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  ${workbookRelsXml}
-  <Relationship Id="rId${sheetsData.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`
-          },
-          {
-            name: "xl/styles.xml",
-            data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="2">
-    <font><sz val="11"/><name val="Arial"/></font>
-    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font>
-  </fonts>
-  <fills count="4">
-    <fill><patternFill patternType="none"/></fill>
-    <fill><patternFill patternType="gray125"/></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FF0F4C81"/></patternFill></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/></patternFill></fill>
-  </fills>
-  <borders count="2">
-    <border><left/><right/><top/><bottom/><diagonal/></border>
-    <border>
-      <left style="thin"><color rgb="FFCBD5E1"/></left>
-      <right style="thin"><color rgb="FFCBD5E1"/></right>
-      <top style="thin"><color rgb="FFCBD5E1"/></top>
-      <bottom style="thin"><color rgb="FFCBD5E1"/></bottom>
-    </border>
-  </borders>
-  <cellXfs count="3">
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
-    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
-  </cellXfs>
-</styleSheet>`
-          }
+          { name: "[Content_Types].xml", data: `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetsData.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` },
+          { name: "_rels/.rels", data: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+          { name: "xl/workbook.xml", data: `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetsData.map((s, i) => `<sheet name="${escapeXml(s.name.slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>` },
+          { name: "xl/_rels/workbook.xml.rels", data: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetsData.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheetsData.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+          { name: "xl/styles.xml", data: `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellXfs count="1"><xf/></cellXfs></styleSheet>` }
         ];
-
-        sheetRowsXmlList.forEach((xml, idx) => {
-          files.push({
-            name: `xl/worksheets/sheet${idx + 1}.xml`,
-            data: xml
-          });
-        });
-
+        sheetRowsXmlList.forEach((xml, idx) => files.push({ name: `xl/worksheets/sheet${idx + 1}.xml`, data: xml }));
         const blob = createZip(files);
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const a = document.createElement("a"); a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
-
-      return { readWorkbook, writeWorkbook, excelSerialToISO };
+      return { readWorkbook, writeWorkbook };
     })();
-
-    // =========================================================================
-    // منطق التطبيق ومعالجة البيانات العربية والفلترة والتقارير
-    // =========================================================================
 
     let allRecords = [];
     let currentFiltered = [];
     let currentSummary = [];
 
     function normalizeArabicDigits(str) {
-      return String(str ?? "")
-        .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-        .replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-        .trim();
+      return String(str ?? "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).trim();
     }
-
     function normalizeArabicText(str) {
-      return String(str ?? "")
-        .replace(/[\u064B-\u065F]/g, "")
-        .replace(/[أإآ]/g, "ا")
-        .replace(/ة/g, "ه")
-        .replace(/ى/g, "ي")
-        .replace(/\s+/g, " ")
-        .trim();
+      return String(str ?? "").replace(/[\u064B-\u065F]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/\s+/g, " ").trim();
     }
-
     function parseConsumption(val) {
       if (typeof val === "number") return isNaN(val) ? 0 : val;
-      const cleaned = normalizeArabicDigits(val).replace(/,/g, "").replace(/[^\d.-]/g, "");
-      const num = parseFloat(cleaned);
+      const num = parseFloat(normalizeArabicDigits(val).replace(/,/g, "").replace(/[^\d.-]/g, ""));
       return isNaN(num) ? 0 : num;
     }
-
     function parseDateToISO(val) {
-      if (val === null || val === undefined || val === "") return "";
+      if (!val) return "";
       if (typeof val === "number" && val > 20000 && val < 90000) {
-        return PureXLSX.excelSerialToISO(val);
+        const utcDays = Math.floor(val - 25569);
+        const d = new Date(utcDays * 86400 * 1000);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
       }
       const s = normalizeArabicDigits(val);
       let m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-      if (m) {
-        return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      }
+      if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
       m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (m) {
-        return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-      }
+      if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
       return s;
     }
-
     function detectColumnMapping(headerRow) {
       const map = { day: -1, date: -1, car: -1, consumption: -1, notes: -1 };
       headerRow.forEach((cell, idx) => {
@@ -1244,25 +587,14 @@
     }
 
     const dropZone = document.getElementById("dropZone");
-    dropZone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropZone.style.background = "#dbeafe";
-    });
-    dropZone.addEventListener("dragleave", () => {
-      dropZone.style.background = "#f8fafc";
-    });
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.style.background = "#dbeafe"; });
+    dropZone.addEventListener("dragleave", () => { dropZone.style.background = "#f8fafc"; });
     dropZone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropZone.style.background = "#f8fafc";
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        handleFile(e.dataTransfer.files[0]);
-      }
+      e.preventDefault(); dropZone.style.background = "#f8fafc";
+      if (e.dataTransfer.files?.length) handleFile(e.dataTransfer.files[0]);
     });
-
     document.getElementById("excelFile").addEventListener("change", (e) => {
-      if (e.target.files && e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
-      }
+      if (e.target.files?.length) handleFile(e.target.files[0]);
     });
 
     async function handleFile(file) {
@@ -1270,96 +602,53 @@
       const errorEl = document.getElementById("errorMsg");
       statusEl.textContent = "جاري قراءة ومعالجة الملف...";
       errorEl.style.display = "none";
-
       try {
-        if (!file.name.toLowerCase().endsWith(".xlsx")) {
-          throw new Error("يرجى اختيار ملف بصيغة Excel (.xlsx) فقط.");
-        }
-
-        const buffer = await file.arrayBuffer();
-        const sheets = await PureXLSX.readWorkbook(buffer);
-
-        allRecords = [];
-        const sheetNamesWithData = [];
-        const uniqueCars = new Set();
-
+        if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("يرجى اختيار ملف بصيغة Excel (.xlsx) فقط.");
+        const sheets = await PureXLSX.readWorkbook(await file.arrayBuffer());
+        allRecords = []; const sheetNamesWithData = []; const uniqueCars = new Set();
         for (const sheet of sheets) {
           if (!sheet.rows || sheet.rows.length < 2) continue;
-
-          let headerRowIdx = -1;
-          let colMap = null;
+          let headerRowIdx = -1, colMap = null;
           for (let r = 0; r < Math.min(10, sheet.rows.length); r++) {
             const candidate = detectColumnMapping(sheet.rows[r] || []);
-            if (candidate.car !== -1 && candidate.consumption !== -1) {
-              headerRowIdx = r;
-              colMap = candidate;
-              break;
-            }
+            if (candidate.car !== -1 && candidate.consumption !== -1) { headerRowIdx = r; colMap = candidate; break; }
           }
-
           if (headerRowIdx === -1) continue;
-
           let sheetCount = 0;
           for (let r = headerRowIdx + 1; r < sheet.rows.length; r++) {
             const row = sheet.rows[r] || [];
             const carVal = String(row[colMap.car] ?? "").trim();
-            if (!carVal || normalizeArabicText(carVal).includes("اجمالي") || normalizeArabicText(carVal).includes("المجموع")) {
-              continue;
-            }
-
-            const dayVal = colMap.day !== -1 ? String(row[colMap.day] ?? "").trim() : "";
-            const dateRaw = colMap.date !== -1 ? row[colMap.date] : "";
-            const dateISO = parseDateToISO(dateRaw);
-            const consumptionVal = parseConsumption(row[colMap.consumption]);
-            const notesVal = colMap.notes !== -1 ? String(row[colMap.notes] ?? "").trim() : "";
-
+            if (!carVal || normalizeArabicText(carVal).includes("اجمالي") || normalizeArabicText(carVal).includes("المجموع")) continue;
             allRecords.push({
               sheet: sheet.name,
-              day: dayVal,
-              date: dateISO,
+              day: colMap.day !== -1 ? String(row[colMap.day] ?? "").trim() : "",
+              date: parseDateToISO(colMap.date !== -1 ? row[colMap.date] : ""),
               car: carVal,
-              consumption: consumptionVal,
-              notes: notesVal
+              consumption: parseConsumption(row[colMap.consumption]),
+              notes: colMap.notes !== -1 ? String(row[colMap.notes] ?? "").trim() : ""
             });
             uniqueCars.add(carVal);
             sheetCount++;
           }
-
-          if (sheetCount > 0) {
-            sheetNamesWithData.push(sheet.name);
-          }
+          if (sheetCount > 0) sheetNamesWithData.push(sheet.name);
         }
-
-        if (allRecords.length === 0) {
-          throw new Error("لم يتم العثور على بيانات مطابقة للأعمدة المطلوبة (اليوم، التاريخ، رقم السيارة، الاستهلاك، ملاحظات).");
-        }
+        if (!allRecords.length) throw new Error("لم يتم العثور على بيانات مطابقة للأعمدة المطلوبة.");
 
         const sheetSelect = document.getElementById("sheetFilter");
         sheetSelect.innerHTML = `<option value="__ALL__">جميع الشيتات (${sheetNamesWithData.length})</option>`;
-        sheetNamesWithData.forEach(name => {
-          const opt = document.createElement("option");
-          opt.value = name;
-          opt.textContent = name;
-          sheetSelect.appendChild(opt);
-        });
+        sheetNamesWithData.forEach(name => sheetSelect.innerHTML += `<option value="${name}">${name}</option>`);
 
         const carSelect = document.getElementById("carFilter");
         carSelect.innerHTML = `<option value="__ALL__">جميع السيارات (${uniqueCars.size})</option>`;
-        Array.from(uniqueCars).sort((a, b) => a.localeCompare(b, "ar")).forEach(car => {
-          const opt = document.createElement("option");
-          opt.value = car;
-          opt.textContent = car;
-          carSelect.appendChild(opt);
-        });
+        Array.from(uniqueCars).sort((a, b) => a.localeCompare(b, "ar")).forEach(car => carSelect.innerHTML += `<option value="${car}">${car}</option>`);
 
-        statusEl.textContent = `تم تحميل الملف "${file.name}" بنجاح (${allRecords.length} سجل من ${sheetNamesWithData.length} شيت).`;
+        statusEl.textContent = `تم تحميل الملف "${file.name}" بنجاح (${allRecords.length} سجل).`;
         document.getElementById("controlsCard").style.display = "block";
         document.getElementById("reportCard").style.display = "block";
-
         applyFilters();
       } catch (err) {
         statusEl.textContent = "";
-        errorEl.textContent = "خطأ: " + (err.message || "حدث خطأ غير متوقع أثناء قراءة الملف.");
+        errorEl.textContent = "خطأ: " + err.message;
         errorEl.style.display = "block";
       }
     }
@@ -1390,15 +679,11 @@
 
       const totalConsumption = currentFiltered.reduce((sum, r) => sum + r.consumption, 0);
       const uniqueCarsSet = new Set(currentFiltered.map(r => r.car));
-
       const summaryMap = new Map();
       currentFiltered.forEach(r => {
-        if (!summaryMap.has(r.car)) {
-          summaryMap.set(r.car, { car: r.car, count: 0, total: 0 });
-        }
+        if (!summaryMap.has(r.car)) summaryMap.set(r.car, { car: r.car, count: 0, total: 0 });
         const entry = summaryMap.get(r.car);
-        entry.count += 1;
-        entry.total += r.consumption;
+        entry.count += 1; entry.total += r.consumption;
       });
       currentSummary = Array.from(summaryMap.values()).sort((a, b) => b.total - a.total);
 
@@ -1406,178 +691,63 @@
       document.getElementById("kpiCars").textContent = uniqueCarsSet.size;
 
       if (reportType === "detailed") {
-        document.getElementById("kpiCountLabel").textContent = "عدد السجلات / الأيام";
+        document.getElementById("kpiCountLabel").textContent = "عدد السجلات";
         document.getElementById("kpiCount").textContent = currentFiltered.length;
-        const avg = currentFiltered.length ? (totalConsumption / currentFiltered.length) : 0;
-        document.getElementById("kpiAvg").textContent = formatNum(avg);
+        document.getElementById("kpiAvg").textContent = formatNum(currentFiltered.length ? totalConsumption / currentFiltered.length : 0);
         renderDetailedTable(totalConsumption);
       } else {
         document.getElementById("kpiCountLabel").textContent = "عدد السيارات";
         document.getElementById("kpiCount").textContent = currentSummary.length;
-        const avg = currentSummary.length ? (totalConsumption / currentSummary.length) : 0;
-        document.getElementById("kpiAvg").textContent = formatNum(avg);
+        document.getElementById("kpiAvg").textContent = formatNum(currentSummary.length ? totalConsumption / currentSummary.length : 0);
         renderSummaryTable(totalConsumption);
       }
 
-      const today = new Date().toLocaleDateString("ar-EG");
-      document.getElementById("printDate").textContent = "تاريخ الطباعة: " + today;
-      document.getElementById("printReportTitle").textContent =
-        reportType === "detailed" ? "تقرير تفصيلي باستهلاك السيارات" : "تقرير تجميعي بإجمالي استهلاك كل سيارة";
-
-      const metaParts = [];
-      metaParts.push("الشيت: " + (sheetVal === "__ALL__" ? "الكل" : sheetVal));
-      metaParts.push("السيارة: " + (carVal === "__ALL__" ? "الكل" : carVal));
-      if (dateFrom) metaParts.push("من: " + dateFrom);
-      if (dateTo) metaParts.push("إلى: " + dateTo);
-      document.getElementById("printReportMeta").textContent = metaParts.join(" | ");
+      document.getElementById("printDate").textContent = "تاريخ الطباعة: " + new Date().toLocaleDateString("ar-EG");
+      document.getElementById("printReportTitle").textContent = reportType === "detailed" ? "تقرير تفصيلي باستهلاك السيارات" : "تقرير تجميعي بإجمالي استهلاك كل سيارة";
+      document.getElementById("printReportMeta").textContent = `الشيت: ${sheetVal === "__ALL__" ? "الكل" : sheetVal} | السيارة: ${carVal === "__ALL__" ? "الكل" : carVal}`;
     }
 
-    function formatNum(n) {
-      return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
-    }
+    function formatNum(n) { return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 }); }
 
     function renderDetailedTable(totalConsumption) {
-      const thead = document.getElementById("tableHead");
-      const tbody = document.getElementById("tableBody");
-      const tfoot = document.getElementById("tableFoot");
-
-      thead.innerHTML = `
-        <tr>
-          <th>م</th>
-          <th>الشيت / الشهر</th>
-          <th>اليوم</th>
-          <th>التاريخ</th>
-          <th>رقم السيارة</th>
-          <th>الاستهلاك</th>
-          <th>ملاحظات</th>
-        </tr>
-      `;
-
-      if (currentFiltered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة لخيارات البحث المحددة.</td></tr>`;
-        tfoot.innerHTML = "";
-        return;
+      document.getElementById("tableHead").innerHTML = `<tr><th>م</th><th>الشيت</th><th>اليوم</th><th>التاريخ</th><th>رقم السيارة</th><th>الاستهلاك</th><th>ملاحظات</th></tr>`;
+      if (!currentFiltered.length) {
+        document.getElementById("tableBody").innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة.</td></tr>`;
+        document.getElementById("tableFoot").innerHTML = ""; return;
       }
-
-      tbody.innerHTML = currentFiltered.map((r, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${escapeHtml(r.sheet)}</td>
-          <td>${escapeHtml(r.day)}</td>
-          <td>${escapeHtml(r.date)}</td>
-          <td><strong>${escapeHtml(r.car)}</strong></td>
-          <td>${formatNum(r.consumption)}</td>
-          <td>${escapeHtml(r.notes)}</td>
-        </tr>
-      `).join("");
-
-      tfoot.innerHTML = `
-        <tr>
-          <td colspan="5">الإجمالي العام (${currentFiltered.length} سجل)</td>
-          <td>${formatNum(totalConsumption)}</td>
-          <td></td>
-        </tr>
-      `;
+      document.getElementById("tableBody").innerHTML = currentFiltered.map((r, i) => `<tr><td>${i+1}</td><td>${escapeHtml(r.sheet)}</td><td>${escapeHtml(r.day)}</td><td>${escapeHtml(r.date)}</td><td><strong>${escapeHtml(r.car)}</strong></td><td>${formatNum(r.consumption)}</td><td>${escapeHtml(r.notes)}</td></tr>`).join("");
+      document.getElementById("tableFoot").innerHTML = `<tr><td colspan="5">الإجمالي العام (${currentFiltered.length} سجل)</td><td>${formatNum(totalConsumption)}</td><td></td></tr>`;
     }
 
     function renderSummaryTable(totalConsumption) {
-      const thead = document.getElementById("tableHead");
-      const tbody = document.getElementById("tableBody");
-      const tfoot = document.getElementById("tableFoot");
-
-      thead.innerHTML = `
-        <tr>
-          <th>م</th>
-          <th>رقم السيارة</th>
-          <th>عدد الأيام / السجلات</th>
-          <th>إجمالي الاستهلاك</th>
-          <th>متوسط الاستهلاك اليومي</th>
-        </tr>
-      `;
-
-      if (currentSummary.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة لخيارات البحث المحددة.</td></tr>`;
-        tfoot.innerHTML = "";
-        return;
+      document.getElementById("tableHead").innerHTML = `<tr><th>م</th><th>رقم السيارة</th><th>عدد السجلات</th><th>إجمالي الاستهلاك</th><th>متوسط الاستهلاك اليومي</th></tr>`;
+      if (!currentSummary.length) {
+        document.getElementById("tableBody").innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة.</td></tr>`;
+        document.getElementById("tableFoot").innerHTML = ""; return;
       }
-
-      tbody.innerHTML = currentSummary.map((s, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td><strong>${escapeHtml(s.car)}</strong></td>
-          <td>${s.count}</td>
-          <td>${formatNum(s.total)}</td>
-          <td>${formatNum(s.count ? s.total / s.count : 0)}</td>
-        </tr>
-      `).join("");
-
-      tfoot.innerHTML = `
-        <tr>
-          <td colspan="2">الإجمالي العام (${currentSummary.length} سيارة)</td>
-          <td>${currentFiltered.length}</td>
-          <td>${formatNum(totalConsumption)}</td>
-          <td>${formatNum(currentFiltered.length ? totalConsumption / currentFiltered.length : 0)}</td>
-        </tr>
-      `;
+      document.getElementById("tableBody").innerHTML = currentSummary.map((s, i) => `<tr><td>${i+1}</td><td><strong>${escapeHtml(s.car)}</strong></td><td>${s.count}</td><td>${formatNum(s.total)}</td><td>${formatNum(s.count ? s.total / s.count : 0)}</td></tr>`).join("");
+      document.getElementById("tableFoot").innerHTML = `<tr><td colspan="2">الإجمالي العام (${currentSummary.length} سيارة)</td><td>${currentFiltered.length}</td><td>${formatNum(totalConsumption)}</td><td>${formatNum(currentFiltered.length ? totalConsumption / currentFiltered.length : 0)}</td></tr>`;
     }
 
-    function escapeHtml(str) {
-      return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-    }
+    function escapeHtml(str) { return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
     function exportToExcel() {
       const reportType = document.getElementById("reportType").value;
-      const carVal = document.getElementById("carFilter").value;
       const totalConsumption = currentFiltered.reduce((sum, r) => sum + r.consumption, 0);
-
       if (reportType === "detailed") {
-        if (currentFiltered.length === 0) return alert("لا توجد بيانات لتصديرها.");
-        const rows = [
-          ["م", "الشيت", "اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"],
-          ...currentFiltered.map((r, i) => [i + 1, r.sheet, r.day, r.date, r.car, r.consumption, r.notes]),
-          ["", "", "", "", "الإجمالي العام", Number(totalConsumption.toFixed(2)), ""]
-        ];
-        const fileName = carVal === "__ALL__"
-          ? "تقرير_استهلاك_السيارات_تفصيلي.xlsx"
-          : `تقرير_سيارة_${carVal.replace(/\s+/g, "_")}.xlsx`;
-        PureXLSX.writeWorkbook([{ name: "التقرير التفصيلي", rows, hasFooter: true }], fileName);
+        if (!currentFiltered.length) return alert("لا توجد بيانات.");
+        PureXLSX.writeWorkbook([{ name: "التقرير التفصيلي", rows: [["م", "الشيت", "اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ...currentFiltered.map((r, i) => [i+1, r.sheet, r.day, r.date, r.car, r.consumption, r.notes]), ["", "", "", "", "الإجمالي العام", Number(totalConsumption.toFixed(2)), ""]] }], "تقرير_تفصيلي.xlsx");
       } else {
-        if (currentSummary.length === 0) return alert("لا توجد بيانات لتصديرها.");
-        const rows = [
-          ["م", "رقم السيارة", "عدد الأيام / السجلات", "إجمالي الاستهلاك", "متوسط الاستهلاك"],
-          ...currentSummary.map((s, i) => [
-            i + 1,
-            s.car,
-            s.count,
-            Number(s.total.toFixed(2)),
-            Number((s.count ? s.total / s.count : 0).toFixed(2))
-          ]),
-          ["", "الإجمالي العام", currentFiltered.length, Number(totalConsumption.toFixed(2)), ""]
-        ];
-        PureXLSX.writeWorkbook([{ name: "التقرير التجميعي", rows, hasFooter: true }], "تقرير_استهلاك_السيارات_تجميعي.xlsx");
+        if (!currentSummary.length) return alert("لا توجد بيانات.");
+        PureXLSX.writeWorkbook([{ name: "التقرير التجميعي", rows: [["م", "رقم السيارة", "عدد السجلات", "إجمالي الاستهلاك", "متوسط الاستهلاك"], ...currentSummary.map((s, i) => [i+1, s.car, s.count, Number(s.total.toFixed(2)), Number((s.count ? s.total / s.count : 0).toFixed(2))]), ["", "الإجمالي العام", currentFiltered.length, Number(totalConsumption.toFixed(2)), ""]] }], "تقرير_تجميعي.xlsx");
       }
     }
 
     function downloadSampleXlsx() {
-      const janRows = [
-        ["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"],
-        ["الأحد", "2026-01-04", "أ ب ج 1234", 45, "مأمورية الموقع الرئيسي"],
-        ["الإثنين", "2026-01-05", "س ص ع 5678", 60, "نقل معدات صيانة"],
-        ["الثلاثاء", "2026-01-06", "أ ب ج 1234", 38, "متابعة الأعمال"]
-      ];
-      const febRows = [
-        ["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"],
-        ["الأربعاء", "2026-02-04", "أ ب ج 1234", 50, "تفقد المحطة"],
-        ["الخميس", "2026-02-05", "س ص ع 5678", 55, "وردية صباحية"]
-      ];
       PureXLSX.writeWorkbook([
-        { name: "يناير 2026", rows: janRows, hasFooter: false },
-        { name: "فبراير 2026", rows: febRows, hasFooter: false }
-      ], "نموذج_بيانات_استهلاك_السيارات.xlsx");
+        { name: "يناير 2026", rows: [["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ["الأحد", "2026-01-04", "أ ب ج 1234", 45, "مأمورية رئيسية"], ["الإثنين", "2026-01-05", "س ص ع 5678", 60, "صيانة معدات"]] },
+        { name: "فبراير 2026", rows: [["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ["الأربعاء", "2026-02-04", "أ ب ج 1234", 50, "تفقد المحطة"]] }
+      ], "نموذج_استهلاك_السيارات.xlsx");
     }
   </script>
 </body>
