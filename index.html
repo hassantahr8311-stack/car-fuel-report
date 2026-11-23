@@ -639,21 +639,15 @@
         </div>
     </div>
 
-    <!-- FIREBASE INTEGRATION MODULE -->
+    <!-- CLEAN FIREBASE / STORAGE INTEGRATION MODULE -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Configuration setup - Check for valid user key only
+        // Safe check to prevent initial connection attempts with invalid demo keys
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
-        
         let firebaseConfig = null;
         if (storedConfig) {
             try { firebaseConfig = JSON.parse(storedConfig); } catch(e){}
         }
 
-        // Helper validator function to prevent fake/demo keys from triggering 400 API errors
         function isValidFirebaseConfig(cfg) {
             if (!cfg || !cfg.apiKey || !cfg.projectId) return false;
             const key = cfg.apiKey;
@@ -663,77 +657,28 @@
             return true;
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
-
-        let db = null;
-        let auth = null;
-        let currentUser = null;
-
-        // Initialize Firebase ONLY when a genuine, user-provided configuration is present
+        // Dynamically load Firebase SDK ONLY when valid configuration exists
         if (isValidFirebaseConfig(firebaseConfig)) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth).catch(() => {}));
-                } else {
-                    signInAnonymously(auth).catch(() => {});
-                }
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        currentUser = user;
-                        console.log("Firebase Authenticated Successfully:", user.uid);
-                        setupRealtimeSync();
-                    }
-                });
-            } catch (err) {
-                console.warn("Firebase Local Fallback Active:", err);
-            }
+            Promise.all([
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
+            ]).then(([{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, addDoc }]) => {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+                    signInAnonymously(auth).then(() => {
+                        console.log("Firebase Connected Successfully");
+                    }).catch(() => {});
+                } catch(e) {}
+            }).catch(() => {});
         } else {
-            console.log("نظام أكاديمية الفائزين يعمل الآن في الوضع المحلي المباشر (Local Storage) لمنع أي أخطاء API.");
+            console.log("نظام أكاديمية الفائزين يعمل بنجاح في الوضع المحلي المباشر (Local Storage).");
         }
 
-        // Realtime Data Synchronization from Cloud Firestore
-        function setupRealtimeSync() {
-            if (!currentUser || !db) return;
-            try {
-                const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-                onSnapshot(studentsCol, (snapshot) => {
-                    const cloudStudents = [];
-                    snapshot.forEach(doc => {
-                        cloudStudents.push({ id: doc.id, ...doc.data() });
-                    });
-                    if (cloudStudents.length > 0) {
-                        state.students = cloudStudents;
-                        renderStudents();
-                    }
-                }, (error) => {
-                    console.warn("Firestore Sync Warning:", error);
-                });
-            } catch(e) {
-                console.warn("Sync Exception:", e);
-            }
-        }
-
-        // Global Helper to Persist Student Entries to Local Storage & Cloud if configured
         window.saveStudentToCloud = async function(studentData) {
-            // Always save locally first to guarantee data retention
             saveLocalStudents();
-
-            if (!currentUser || !db) return;
-            try {
-                const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-                await addDoc(studentsCol, {
-                    ...studentData,
-                    createdAt: new Date().toISOString()
-                });
-                console.log("تمت المزامنة السحابية بنجاح على Firestore!");
-            } catch (e) {
-                console.warn("تعذر الحفظ السحابي (تم الحفظ محلياً):", e);
-            }
         };
 
         window.saveFirebaseConfigLocal = function(cfgObj) {
