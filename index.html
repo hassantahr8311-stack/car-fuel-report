@@ -180,6 +180,9 @@
                         <button onclick="showAdminSection('whatsappGatewaySec')" id="abtn-whatsappGatewaySec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all bg-green-50 text-green-900 border border-green-200">
                             <i class="fa-brands fa-whatsapp text-green-600"></i> 1.13 إعدادات ربط الواتساب
                         </button>
+                        <button onclick="showAdminSection('firebaseConfigSec')" id="abtn-firebaseConfigSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all bg-amber-50 text-amber-900 border border-amber-200">
+                            <i class="fa-solid fa-fire text-amber-600"></i> 1.14 إعدادات Firebase السحابية
+                        </button>
                     </aside>
 
                     <!-- Admin Main Workspace Panel -->
@@ -370,7 +373,7 @@
                                         <input type="checkbox" id="dstCheck" class="w-4 h-4 text-emeraldDark rounded">
                                         <label for="dstCheck" class="cursor-pointer">تفعيل التوقيت الصيفي (+1 ساعة تلقائياً)</label>
                                     </div>
-                                    <button onclick="alert('تم تحديث التوقيت الصيفي/الشتوي بنجاح دون المساس بمواعيد الطلاب والمعلمين')" class="w-full py-2.5 emerald-gradient text-white rounded-xl font-bold">
+                                    <button onclick="showAdminStatus('تم تحديث التوقيت الصيفي/الشتوي بنجاح دون المساس بمواعيد الطلاب والمعلمين')" class="w-full py-2.5 emerald-gradient text-white rounded-xl font-bold">
                                         حفظ إعدادات التوقيت
                                     </button>
                                 </div>
@@ -415,6 +418,8 @@
                             <h3 class="font-bold text-gray-900 text-base">1.9 مكتبة الوسائط والكتب</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" id="libraryCardsGrid"></div>
                         </div>
+
+                        <div id="adminActionBanner" class="hidden mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold"></div>
 
                         <!-- 1.13 WHATSAPP GATEWAY INTEGRATION -->
                         <div id="whatsappGatewaySec" class="admin-view-panel hidden space-y-6">
@@ -466,6 +471,50 @@
                                 <div class="flex justify-end items-center pt-3">
                                     <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-xl shadow">
                                         <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ إعدادات الواتساب
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 1.14 FIREBASE CLOUD CONFIGURATION -->
+                        <div id="firebaseConfigSec" class="admin-view-panel hidden space-y-6">
+                            <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-5 rounded-2xl shadow-sm space-y-2">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-fire text-3xl text-amber-300"></i>
+                                    <div>
+                                        <h3 class="font-bold text-base">إعدادات قاعدة بيانات Firebase السحابية</h3>
+                                        <p class="text-xs text-amber-100">أدخل مفاتيح مشروعك الخاص من Firebase Console للربط السحابي المباشر</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form onsubmit="saveFirebaseFromUI(event)" class="bg-white p-6 rounded-2xl border border-gray-200 space-y-4 text-xs font-semibold">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">API Key *</label>
+                                        <input type="text" id="fbApiKey" required placeholder="AIzaSy..." class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                    </div>
+
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">Auth Domain</label>
+                                        <input type="text" id="fbAuthDomain" placeholder="your-app.firebaseapp.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                    </div>
+
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">Project ID *</label>
+                                        <input type="text" id="fbProjectId" required placeholder="your-project-id" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                    </div>
+
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">Storage Bucket</label>
+                                        <input type="text" id="fbStorageBucket" placeholder="your-app.appspot.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center pt-3 border-t">
+                                    <span id="fbStatusLabel" class="text-xs font-bold text-emerald-700"></span>
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded-xl shadow">
+                                        <i class="fa-solid fa-cloud-arrow-up ml-1"></i> تفعيل وحفظ ربط Firebase
                                     </button>
                                 </div>
                             </form>
@@ -641,44 +690,78 @@
 
     <!-- CLEAN & SAFE FIREBASE MODULE -->
     <script type="module">
-        // 1. تحقق من وجود إعدادات Firebase حقيقية
+        // 1. تحقق من وجود إعدادات Firebase حقيقية محفوظة من المستخدم فقط
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         let firebaseConfig = null;
         if (storedConfig) {
-            try { firebaseConfig = JSON.parse(storedConfig); } catch(e){}
+            try {
+                firebaseConfig = JSON.parse(storedConfig);
+            } catch (e) {
+                firebaseConfig = null;
+            }
         }
 
-        // دالة الفحص التأكيدي لمنع محاولة الاتصال بمفاتيح وهمية
+        // دالة فحص صارمة لمنع إرسال أي طلبات بمفاتيح تجريبية أو ناقصة
         function isValidFirebaseConfig(cfg) {
-            if (!cfg || !cfg.apiKey || !cfg.projectId) return false;
-            const key = cfg.apiKey;
-            if (key.includes('DemoKey') || key.includes('AIzaSyDemoKey') || key.includes('YOUR_API_KEY') || key.length < 20) {
+            if (!cfg || typeof cfg !== 'object') return false;
+            const key = String(cfg.apiKey || '').trim();
+            const projectId = String(cfg.projectId || '').trim();
+            if (!key || !projectId) return false;
+            if (
+                key.includes('DemoKey') ||
+                key.includes('AIzaSyDemoKey') ||
+                key.includes('YOUR_API_KEY') ||
+                key.length < 25
+            ) {
                 return false;
             }
             return true;
         }
 
-        // استدعاء Firebase فقط وفقط إذا تم توفير مفتاح حقيقي
+        function updateFirebaseStatusLabel(text, isConnected = false) {
+            const label = document.getElementById('fbStatusLabel');
+            if (!label) return;
+            label.textContent = text;
+            label.className = isConnected
+                ? 'text-xs font-bold text-emerald-700'
+                : 'text-xs font-bold text-amber-800';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (isValidFirebaseConfig(firebaseConfig)) {
+                document.getElementById('fbApiKey').value = firebaseConfig.apiKey || '';
+                document.getElementById('fbAuthDomain').value = firebaseConfig.authDomain || '';
+                document.getElementById('fbProjectId').value = firebaseConfig.projectId || '';
+                document.getElementById('fbStorageBucket').value = firebaseConfig.storageBucket || '';
+                updateFirebaseStatusLabel('جاري التحقق من الاتصال السحابي بـ Firebase...', true);
+            } else {
+                updateFirebaseStatusLabel('الوضع المحلي (LocalStorage) نشط — أدخل بيانات مشروع Firebase لتفعيل الربط السحابي', false);
+            }
+        });
+
+        // استدعاء مكتبات Firebase فقط عند توفر إعدادات صالحة أدخلها المستخدم فعلياً
         if (isValidFirebaseConfig(firebaseConfig)) {
             Promise.all([
                 import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
                 import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
                 import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
-            ]).then(([{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, addDoc }]) => {
+            ]).then(([{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore }]) => {
                 try {
                     const app = initializeApp(firebaseConfig);
                     const auth = getAuth(app);
                     const db = getFirestore(app);
-                    signInAnonymously(auth).then((userCredential) => {
-                        console.log("%c Firebase متصل بنجاح!", "color: green; font-weight: bold;");
+                    signInAnonymously(auth).then(() => {
                         window.firebaseDb = db;
+                        updateFirebaseStatusLabel(`متصل سحابياً بـ Firebase (${firebaseConfig.projectId})`, true);
                     }).catch((err) => {
-                        console.warn("تنبيه الفيربيز:", err.message);
+                        updateFirebaseStatusLabel(`تعذر تسجيل الدخول السحابي: ${err.message}`, false);
                     });
-                } catch(e) {}
-            }).catch(() => {});
-        } else {
-            console.log("%c يعمل النظام الآن بالوضع المحلي (LocalStorage) النظيف 100% بدون أخطاء.", "color: #046c4e; font-weight: bold;");
+                } catch (e) {
+                    updateFirebaseStatusLabel('تعذر تهيئة Firebase، يتم العمل محلياً.', false);
+                }
+            }).catch(() => {
+                updateFirebaseStatusLabel('تعذر تحميل حزمة Firebase، يتم العمل محلياً.', false);
+            });
         }
 
         window.saveStudentToCloud = async function(studentData) {
@@ -687,17 +770,33 @@
                 try {
                     const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
                     await addDoc(collection(window.firebaseDb, "students"), studentData);
-                    console.log("تم الحفظ في Firebase السحابي بنجاح!");
-                } catch(e) {
-                    console.warn("تعذر الحفظ السحابي، تم الحفظ محلياً:", e);
+                } catch (e) {
+                    // يظل الحفظ المحلي محفوظاً دون تعطيل التجربة
                 }
             }
         };
 
         window.saveFirebaseConfigLocal = function(cfgObj) {
+            if (!isValidFirebaseConfig(cfgObj)) {
+                updateFirebaseStatusLabel('يرجى إدخال API Key صحيح و Project ID صالح لتفعيل Firebase.', false);
+                return;
+            }
             localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(cfgObj));
-            alert("تم حفظ إعدادات Firebase الحقيقية بنجاح! سيتم إعادة تحميل الصفحة لتفعيل الربط السحابي.");
-            location.reload();
+            updateFirebaseStatusLabel('تم حفظ إعدادات Firebase بنجاح! جاري التحديث...', true);
+            setTimeout(() => {
+                location.reload();
+            }, 400);
+        };
+
+        window.saveFirebaseFromUI = function(e) {
+            e.preventDefault();
+            const cfg = {
+                apiKey: document.getElementById('fbApiKey').value.trim(),
+                authDomain: document.getElementById('fbAuthDomain').value.trim(),
+                projectId: document.getElementById('fbProjectId').value.trim(),
+                storageBucket: document.getElementById('fbStorageBucket').value.trim()
+            };
+            window.saveFirebaseConfigLocal(cfg);
         };
     </script>
 
@@ -707,7 +806,6 @@
             { name: 'مالك محمود خليفة', city: 'مصر - القاهرة', pkg: 'باقة 8 حصص - 350 جنيه', wa: '+201099887766', status: 'نشط' }
         ];
 
-        // Load students from LocalStorage if available
         const localSavedStudents = localStorage.getItem('alfaizeen_students');
         const initialStudents = localSavedStudents ? JSON.parse(localSavedStudents) : defaultStudents;
 
@@ -725,6 +823,13 @@
                 { title: 'تسجيل شرح أحكام التجويد', type: 'فيديو تعليمي' }
             ]
         };
+
+        function showAdminStatus(msg) {
+            const banner = document.getElementById('adminActionBanner');
+            if (!banner) return;
+            banner.textContent = msg;
+            banner.classList.remove('hidden');
+        }
 
         function saveLocalStudents() {
             localStorage.setItem('alfaizeen_students', JSON.stringify(state.students));
@@ -792,7 +897,7 @@
                     <td class="p-3 font-mono text-emeraldDark font-bold">${t.wallet}</td>
                     <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[11px]">${t.status}</span></td>
                     <td class="p-3 text-center">
-                        <button onclick="alert('تم تحديث حالة المعلم مؤقتاً')" class="bg-gray-200 text-gray-800 px-2.5 py-1 rounded-lg">إيقاف</button>
+                        <button onclick="showAdminStatus('تم تحديث حالة المعلم ${t.name} بنجاح')" class="bg-gray-200 text-gray-800 px-2.5 py-1 rounded-lg">إيقاف</button>
                     </td>
                 </tr>
             `).join('');
@@ -824,7 +929,7 @@
                 <div class="bg-white p-4 rounded-2xl border border-gray-200 space-y-2">
                     <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${l.type}</span>
                     <h5 class="font-bold text-gray-900">${l.title}</h5>
-                    <button onclick="alert('جاري تنزيل الملف...')" class="w-full py-1.5 bg-gray-100 rounded font-bold">تنزيل الملف</button>
+                    <button onclick="showAdminStatus('جاري تجهيز ملف (${l.title})...')" class="w-full py-1.5 bg-gray-100 rounded font-bold">تنزيل الملف</button>
                 </div>
             `).join('');
         }
@@ -833,7 +938,7 @@
             const urlInput = document.getElementById('gformUrlInput');
             urlInput.select();
             document.execCommand('copy');
-            alert('تم نسخ رابط Google Forms الخاص بأكاديمية الفائزين بنجاح!');
+            showAdminStatus('تم نسخ رابط Google Forms الخاص بأكاديمية الفائزين بنجاح.');
         }
 
         function shareFormWhatsApp() {
@@ -855,6 +960,8 @@
 
             if (typeof window.saveStudentToCloud === 'function') {
                 window.saveStudentToCloud(newStudent);
+            } else {
+                saveLocalStudents();
             }
 
             sendWelcomeWhatsapp(name, wa);
@@ -871,6 +978,8 @@
 
             if (typeof window.saveStudentToCloud === 'function') {
                 window.saveStudentToCloud(newStudent);
+            } else {
+                saveLocalStudents();
             }
 
             sendWelcomeWhatsapp(name, wa);
@@ -893,7 +1002,7 @@
             select.appendChild(opt);
 
             closeModal('newPackageModal');
-            alert("تمت إضافة الباقة الجديدة بنجاح!");
+            showAdminStatus('تمت إضافة الباقة الجديدة بنجاح.');
         }
 
         function openModal(modalId) {
@@ -902,6 +1011,13 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function pickQuickWhatsappNumber() {
+            const selectEl = document.getElementById('waStudentQuickSelect');
+            if (selectEl && selectEl.value) {
+                document.getElementById('waRecipientNumber').value = selectEl.value;
+            }
         }
 
         function openWhatsAppModal(title, text, phone = '') {
@@ -917,6 +1033,7 @@
             selectEl.value = phone || '';
             openModal('whatsappModal');
         }
+
         function toggleStudentStatus(idx) {
             if (state.students[idx]) {
                 state.students[idx].status = state.students[idx].status === 'نشط' ? 'موقوف' : 'نشط';
@@ -928,7 +1045,6 @@
         function normalizeWhatsappPhone(rawPhone) {
             let digits = (rawPhone || '').replace(/[^0-9]/g, '');
             if (!digits) return '';
-            // إذا بدأ الرقم بـ 01 (رقم مصري محلي من 11 رقماً) نضيف كود مصر 20
             if (digits.startsWith('01') && digits.length === 11) {
                 digits = '20' + digits.slice(1);
             } else if (digits.startsWith('00')) {
