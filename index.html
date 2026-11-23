@@ -645,20 +645,22 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration setup
+        // Firebase Configuration setup - Check for valid user key only
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         
-        // Parse config only if it's explicitly provided and valid
         let firebaseConfig = null;
         if (storedConfig) {
             try { firebaseConfig = JSON.parse(storedConfig); } catch(e){}
-        } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-            try { 
-                const parsed = JSON.parse(__firebase_config);
-                if (parsed && parsed.apiKey && !parsed.apiKey.includes('DemoKey') && !parsed.apiKey.includes('AIzaSyDemoKey')) {
-                    firebaseConfig = parsed;
-                }
-            } catch(e){}
+        }
+
+        // Helper validator function to prevent fake/demo keys from triggering 400 API errors
+        function isValidFirebaseConfig(cfg) {
+            if (!cfg || !cfg.apiKey || !cfg.projectId) return false;
+            const key = cfg.apiKey;
+            if (key.includes('DemoKey') || key.includes('AIzaSyDemoKey') || key.includes('YOUR_API_KEY')) {
+                return false;
+            }
+            return true;
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
@@ -667,8 +669,8 @@
         let auth = null;
         let currentUser = null;
 
-        // Initialize Firebase ONLY if a valid real key is detected
-        if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('DemoKey') && !firebaseConfig.apiKey.includes('AIzaSyDemoKey')) {
+        // Initialize Firebase ONLY when a genuine, user-provided configuration is present
+        if (isValidFirebaseConfig(firebaseConfig)) {
             try {
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
@@ -688,10 +690,10 @@
                     }
                 });
             } catch (err) {
-                console.warn("Firebase Init Notice: Switched to Local Storage Mode", err);
+                console.warn("Firebase Local Fallback Active:", err);
             }
         } else {
-            console.log("الوضع الحالي: الحفظ المحلي النظيف (Local Storage). لإدخال كود Firebase الخاص بك اضغط على زر ربط Firebase.");
+            console.log("نظام أكاديمية الفائزين يعمل الآن في الوضع المحلي المباشر (Local Storage) لمنع أي أخطاء API.");
         }
 
         // Realtime Data Synchronization from Cloud Firestore
@@ -709,16 +711,16 @@
                         renderStudents();
                     }
                 }, (error) => {
-                    console.warn("Firestore Realtime Sync Notice:", error);
+                    console.warn("Firestore Sync Warning:", error);
                 });
             } catch(e) {
-                console.warn("Sync Error:", e);
+                console.warn("Sync Exception:", e);
             }
         }
 
-        // Global Helper to Persist Student Entries to Cloud or Local Storage
+        // Global Helper to Persist Student Entries to Local Storage & Cloud if configured
         window.saveStudentToCloud = async function(studentData) {
-            // Save locally first
+            // Always save locally first to guarantee data retention
             saveLocalStudents();
 
             if (!currentUser || !db) return;
@@ -728,15 +730,15 @@
                     ...studentData,
                     createdAt: new Date().toISOString()
                 });
-                console.log("Data persisted to Cloud Firestore successfully!");
+                console.log("تمت المزامنة السحابية بنجاح على Firestore!");
             } catch (e) {
-                console.warn("Cloud Save Notice (Saved Locally):", e);
+                console.warn("تعذر الحفظ السحابي (تم الحفظ محلياً):", e);
             }
         };
 
         window.saveFirebaseConfigLocal = function(cfgObj) {
             localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(cfgObj));
-            alert("تم حفظ إعدادات Firebase الحقيقية بنجاح! سيتم إعادة تحميل الصفحة للتفعيل.");
+            alert("تم حفظ إعدادات Firebase الحقيقية بنجاح! سيتم إعادة تحميل الصفحة لتفعيل الربط السحابي.");
             location.reload();
         };
     </script>
