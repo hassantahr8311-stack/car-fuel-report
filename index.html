@@ -645,11 +645,21 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration setup - Saved local credentials or environment variables
+        // Firebase Configuration setup
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
-        const firebaseConfig = storedConfig ? JSON.parse(storedConfig) : (typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : null);
+        
+        // Parse config only if it's explicitly provided and valid
+        let firebaseConfig = null;
+        if (storedConfig) {
+            try { firebaseConfig = JSON.parse(storedConfig); } catch(e){}
+        } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try { 
+                const parsed = JSON.parse(__firebase_config);
+                if (parsed && parsed.apiKey && !parsed.apiKey.includes('DemoKey') && !parsed.apiKey.includes('AIzaSyDemoKey')) {
+                    firebaseConfig = parsed;
+                }
+            } catch(e){}
+        }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
 
@@ -657,8 +667,8 @@
         let auth = null;
         let currentUser = null;
 
-        // Try initializing Firebase safely without breaking on invalid keys
-        if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('DemoKey')) {
+        // Initialize Firebase ONLY if a valid real key is detected
+        if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('DemoKey') && !firebaseConfig.apiKey.includes('AIzaSyDemoKey')) {
             try {
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
@@ -681,7 +691,7 @@
                 console.warn("Firebase Init Notice: Switched to Local Storage Mode", err);
             }
         } else {
-            console.log("Firebase Notice: Running in Local Storage Mode (Offline/Demo Mode).");
+            console.log("الوضع الحالي: الحفظ المحلي النظيف (Local Storage). لإدخال كود Firebase الخاص بك اضغط على زر ربط Firebase.");
         }
 
         // Realtime Data Synchronization from Cloud Firestore
