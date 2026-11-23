@@ -1,754 +1,1004 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام استخراج تقارير استهلاك السيارات (يعمل بدون إنترنت + Firebase)</title>
-  
-  <!-- ربط مكتبات Firebase السحابية (Firestore) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyA0MbPYfZgOavqJ3oezzi0AS0FhdpicVys",
-      authDomain: "car-fuel-reports.firebaseapp.com",
-      projectId: "car-fuel-reports",
-      storageBucket: "car-fuel-reports.appspot.com",
-      messagingSenderId: "282769183732",
-      appId: "1:282769183732:web:ad5813fd1fbd781fb95fa1",
-      measurementId: "G-MG8TBE8GW"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // دالة حفظ السجلات سحابياً في Firestore
-    window.saveDataToFirebase = async function(records) {
-      try {
-        const count = records.length;
-        if (!confirm(`هل تريد بالتأكيد رفع وحفظ (${count}) سجل إلى سحابة Firebase؟`)) return;
-        
-        const statusEl = document.getElementById("fileStatus");
-        statusEl.textContent = "جاري رفع البيانات إلى سحابة Firebase...";
-
-        for (const record of records) {
-          await addDoc(collection(db, "car_fuel_reports"), {
-            sheet: record.sheet,
-            day: record.day,
-            date: record.date,
-            car: record.car,
-            consumption: record.consumption,
-            notes: record.notes,
-            createdAt: new Date().toISOString()
-          });
-        }
-        statusEl.textContent = `تم رفع وحفظ ${count} سجل بنجاح إلى سحابة Firebase!`;
-        alert("تم الحفظ السحابي بنجاح!");
-      } catch (e) {
-        console.error("خطأ في الرفع السحابي: ", e);
-        alert("حدث خطأ أثناء الرفع السحابي. تأكد من ضبط قواعد الأمان (Firestore Rules).");
-      }
-    };
-  </script>
-
-  <style>
-    :root {
-      --primary: #0f4c81;
-      --primary-dark: #093256;
-      --accent: #0d9488;
-      --bg: #f1f5f9;
-      --card: #ffffff;
-      --text: #1e293b;
-      --muted: #64748b;
-      --border: #cbd5e1;
-      --danger: #dc2626;
-      --success: #16a34a;
-    }
-
-    * { box-sizing: border-box; font-family: "Tahoma", "Segoe UI", "Arial", sans-serif; }
-    body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); direction: rtl; text-align: right; }
-
-    header {
-      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-      color: #fff; padding: 18px 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-    }
-    header h1 { margin: 0; font-size: 22px; font-weight: bold; }
-    header p { margin: 4px 0 0; font-size: 13px; opacity: 0.9; }
-
-    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .badge-offline { background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.35); padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
-    
-    .help-icon-btn {
-      background: #ffffff; color: var(--primary-dark); border: none; padding: 7px 16px; border-radius: 20px;
-      font-size: 13px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); transition: transform 0.15s, background 0.2s;
-    }
-    .help-icon-btn:hover { background: #e0f2fe; transform: translateY(-1px); }
-    .help-icon-circle { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 14px; font-weight: bold; }
-
-    /* نافذة الشرح (Modal) */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px; }
-    .modal-overlay.open { display: flex; }
-    .modal-box { background: #fff; border-radius: 12px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25); border: 1px solid #cbd5e1; }
-    .modal-header { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-header h2 { margin: 0; font-size: 18px; }
-    .modal-close { background: rgba(255, 255, 255, 0.2); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; }
-    .modal-body { padding: 22px; line-height: 1.7; font-size: 14px; }
-    .guide-step { display: flex; gap: 14px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-right: 4px solid var(--primary); border-radius: 8px; padding: 12px 14px; }
-    .guide-step-num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-    .cols-badge-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .col-badge { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 10px; border-radius: 6px; font-weight: bold; font-size: 12.5px; }
-    .modal-footer { padding: 14px 22px; border-top: 1px solid #e2e8f0; text-align: left; background: #f8fafc; }
-
-    .container { max-width: 1200px; margin: 24px auto; padding: 0 16px 40px; }
-    .card { background: var(--card); border-radius: 10px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06); border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 20px; }
-    .card-title { font-size: 16px; font-weight: bold; color: var(--primary); margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
-
-    .upload-box { border: 2px dashed var(--primary); background: #f8fafc; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: background 0.2s; }
-    .upload-box:hover { background: #eff6ff; }
-    .upload-box input[type="file"] { display: none; }
-    .upload-btn { display: inline-block; background: var(--primary); color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-
-    .file-status { margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--success); }
-    .error-msg { margin-top: 12px; font-size: 14px; font-weight: bold; color: var(--danger); background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 6px; display: none; }
-
-    .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; align-items: end; }
-    .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: var(--text); }
-    .form-group select, .form-group input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); direction: rtl; }
-
-    .actions-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
-    .btn { border: none; border-radius: 6px; padding: 10px 18px; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; }
-    .btn:hover { opacity: 0.9; }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-excel { background: #15803d; color: #fff; }
-    .btn-print { background: #334155; color: #fff; }
-    .btn-cloud { background: #ea580c; color: #fff; }
-    .btn-reset { background: #e2e8f0; color: #1e293b; }
-
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
-    .kpi-card { background: #f8fafc; border: 1px solid #cbd5e1; border-right: 5px solid var(--primary); border-radius: 8px; padding: 14px 16px; }
-    .kpi-card.accent { border-right-color: var(--accent); }
-    .kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-    .kpi-value { font-size: 22px; font-weight: bold; color: var(--primary-dark); }
-
-    .table-wrapper { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
-    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: right; }
-    th { background-color: var(--primary); color: #fff; font-weight: bold; white-space: nowrap; }
-    tr:nth-child(even) td { background-color: #f8fafc; }
-    tfoot td { background-color: #e2e8f0 !important; font-weight: bold; color: var(--primary-dark); }
-
-    .print-header, .print-footer { display: none; }
-    .sample-link { background: none; border: none; color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 13px; margin-top: 8px; font-weight: bold; }
-
-    @media print {
-      body { background: #fff; }
-      header, .no-print, .modal-overlay { display: none !important; }
-      .container { max-width: 100%; margin: 0; padding: 0; }
-      .card { box-shadow: none; border: none; padding: 0; }
-      .print-header { display: block; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
-      .print-header-top { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
-      .print-title { text-align: center; font-size: 18px; font-weight: bold; margin: 6px 0; }
-      .print-meta { text-align: center; font-size: 13px; color: #333; }
-      .print-footer { display: flex; justify-content: space-between; margin-top: 40px; font-weight: bold; font-size: 14px; padding: 0 30px; }
-      th { background-color: #e2e8f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-  </style>
-</head>
-<body>
-
-  <header class="no-print">
-    <div>
-      <h1>نظام استخراج تقارير استهلاك السيارات</h1>
-      <p>قراءة ملفات الإكسل وحفظ التقارير محلياً وسحابياً على Firebase</p>
-    </div>
-    <div class="header-actions">
-      <button type="button" class="help-icon-btn" onclick="openHelpModal()">
-        <span class="help-icon-circle">؟</span>
-        <span>وصف وشرح عمل الموقع</span>
-      </button>
-      <div class="badge-offline">يعمل محلياً + Firebase</div>
-    </div>
-  </header>
-
-  <!-- نافذة الشرح -->
-  <div class="modal-overlay no-print" id="helpModal" onclick="if(event.target === this) closeHelpModal()">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2>دليل ووصف عمل نظام استخراج تقارير استهلاك السيارات</h2>
-        <button type="button" class="modal-close" onclick="closeHelpModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <p style="margin-top: 0; font-weight: bold; color: var(--primary-dark);">نبذة عن الموقع:</p>
-        <p>أداة مكتبية مبرمجة في ملف واحد لقراءة ملفات الإكسل (<code>.xlsx</code>) للسيارات، تصفيتها، واستخراج تقارير دقيقة مع إمكانية الحفظ المحلي أو الرفع السحابي على Firebase.</p>
-        <div class="guide-step">
-          <div class="guide-step-num">1</div>
-          <div>
-            <h4>رفع ملف الإكسل</h4>
-            <p>يتعرف النظام تلقائياً على الأعمدة: اليوم، التاريخ، رقم السيارة، الاستهلاك، ملاحظات.</p>
-            <div class="cols-badge-list">
-              <span class="col-badge">اليوم</span><span class="col-badge">التاريخ</span><span class="col-badge">رقم السيارة</span><span class="col-badge">الاستهلاك</span><span class="col-badge">ملاحظات</span>
-            </div>
-          </div>
-        </div>
-        <div class="guide-step">
-          <div class="guide-step-num">2</div>
-          <div>
-            <h4>التصفية والتقارير</h4>
-            <p>فلترة حسب الشيت، رقم السيارة، أو الفترة الزمنية، والتبديل بين التقرير التفصيلي والتجميعي.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <div class="guide-step-num">3</div>
-          <div>
-            <h4>الحفظ سحابياً أو محلياً</h4>
-            <p>تصدير كملف إكسل، طباعة PDF، أو حفظ السجلات مباشرة على قاعدة بيانات Firebase السحابية.</p>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" onclick="closeHelpModal()">فهمت، إغلاق الشرح</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="container">
-    <div class="card no-print">
-      <div class="card-title">1. تحميل ملف الإكسل (البيانات الأساسية)</div>
-      <div class="upload-box" id="dropZone" onclick="document.getElementById('excelFile').click()">
-        <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">اضغط هنا لاختيار ملف الإكسل (.xlsx) أو اسحب الملف وأفلته هنا</div>
-        <div style="font-size: 13px; color: var(--muted);">يدعم الشيتات المتعددة بالأعمدة: اليوم ، التاريخ ، رقم السيارة ، الاستهلاك ، ملاحظات</div>
-        <span class="upload-btn">اختيار ملف إكسل من الجهاز</span>
-        <input type="file" id="excelFile" accept=".xlsx" />
-      </div>
-      <div style="text-align: center;">
-        <button type="button" class="sample-link" onclick="downloadSampleXlsx()">تحميل ملف إكسل تجريبي (نموذج جاهز للاختبار)</button>
-      </div>
-      <div id="fileStatus" class="file-status"></div>
-      <div id="errorMsg" class="error-msg"></div>
-    </div>
-
-    <div class="card no-print" id="controlsCard" style="display: none;">
-      <div class="card-title">2. خيارات الفلترة ونوع التقرير</div>
-      <div class="filters-grid">
-        <div class="form-group">
-          <label for="sheetFilter">الشيت / الشهر:</label>
-          <select id="sheetFilter" onchange="applyFilters()"><option value="__ALL__">جميع الشيتات (الكل)</option></select>
-        </div>
-        <div class="form-group">
-          <label for="carFilter">رقم السيارة:</label>
-          <select id="carFilter" onchange="applyFilters()"><option value="__ALL__">جميع السيارات</option></select>
-        </div>
-        <div class="form-group">
-          <label for="reportType">نوع التقرير:</label>
-          <select id="reportType" onchange="applyFilters()">
-            <option value="detailed">تقرير تفصيلي (جميع السجلات)</option>
-            <option value="summary">تقرير تجميعي (إجمالي لكل سيارة)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="dateFrom">من تاريخ:</label>
-          <input type="date" id="dateFrom" onchange="applyFilters()" />
-        </div>
-        <div class="form-group">
-          <label for="dateTo">إلى تاريخ:</label>
-          <input type="date" id="dateTo" onchange="applyFilters()" />
-        </div>
-      </div>
-
-      <div class="actions-bar">
-        <button type="button" class="btn btn-excel" onclick="exportToExcel()">حفظ كملف إكسل (.xlsx)</button>
-        <button type="button" class="btn btn-print" onclick="window.print()">طباعة / حفظ PDF</button>
-        <button type="button" class="btn btn-cloud" onclick="uploadCurrentDataToCloud()">حفظ سحابياً (Firebase)</button>
-        <button type="button" class="btn btn-reset" onclick="resetFilters()">إعادة ضبط</button>
-      </div>
-    </div>
-
-    <div class="card" id="reportCard" style="display: none;">
-      <div class="print-header">
-        <div class="print-header-top">
-          <div>الإدارة العامة للموارد المائية والري</div>
-          <div id="printDate"></div>
-        </div>
-        <div class="print-title" id="printReportTitle">تقرير استهلاك السيارات</div>
-        <div class="print-meta" id="printReportMeta"></div>
-      </div>
-
-      <div class="card-title no-print">3. معاينة التقرير المستخرج</div>
-
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">إجمالي الاستهلاك</div><div class="kpi-value" id="kpiTotal">0</div></div>
-        <div class="kpi-card accent"><div class="kpi-label" id="kpiCountLabel">عدد السجلات</div><div class="kpi-value" id="kpiCount">0</div></div>
-        <div class="kpi-card"><div class="kpi-label">متوسط الاستهلاك</div><div class="kpi-value" id="kpiAvg">0</div></div>
-        <div class="kpi-card accent"><div class="kpi-label">عدد السيارات</div><div class="kpi-value" id="kpiCars">0</div></div>
-      </div>
-
-      <div class="table-wrapper">
-        <table id="reportTable">
-          <thead id="tableHead"></thead>
-          <tbody id="tableBody"></tbody>
-          <tfoot id="tableFoot"></tfoot>
-        </table>
-      </div>
-
-      <div class="print-footer">
-        <div>معد التقرير: ..............................</div>
-        <div>يعتمد / مدير عام الإدارة: ..............................</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    function openHelpModal() { document.getElementById("helpModal").classList.add("open"); }
-    function closeHelpModal() { document.getElementById("helpModal").classList.remove("open"); }
-
-    function uploadCurrentDataToCloud() {
-      if (!allRecords || allRecords.length === 0) {
-        alert("لا توجد بيانات لرفعها.");
-        return;
-      }
-      if (typeof window.saveDataToFirebase === "function") {
-        window.saveDataToFirebase(allRecords);
-      } else {
-        alert("جاري تحميل اتصال Firebase، حاول بعد ثوانٍ قليلة.");
-      }
-    }
-
-    const PureXLSX = (() => {
-      const textDecoder = new TextDecoder("utf-8");
-      const textEncoder = new TextEncoder();
-      const crcTable = (() => {
-        const table = new Uint32Array(256);
-        for (let i = 0; i < 256; i++) {
-          let c = i;
-          for (let k = 0; k < 8; k++) { c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); }
-          table[i] = c;
-        }
-        return table;
-      })();
-      function crc32(buf) {
-        let crc = 0xFFFFFFFF;
-        for (let i = 0; i < buf.length; i++) { crc = crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8); }
-        return (crc ^ 0xFFFFFFFF) >>> 0;
-      }
-      async function unzipEntries(arrayBuffer) {
-        const view = new DataView(arrayBuffer);
-        const bytes = new Uint8Array(arrayBuffer);
-        const files = {};
-        let eocdOffset = -1;
-        for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
-          if (view.getUint32(i, true) === 0x06054b50) { eocdOffset = i; break; }
-        }
-        if (eocdOffset === -1) throw new Error("ملف الإكسل غير صالح.");
-        const totalEntries = view.getUint16(eocdOffset + 10, true);
-        let cdOffset = view.getUint32(eocdOffset + 16, true);
-        for (let idx = 0; idx < totalEntries; idx++) {
-          if (view.getUint32(cdOffset, true) !== 0x02014b50) break;
-          const compression = view.getUint16(cdOffset + 10, true);
-          const compSize = view.getUint32(cdOffset + 20, true);
-          const fileNameLen = view.getUint16(cdOffset + 28, true);
-          const extraLen = view.getUint16(cdOffset + 30, true);
-          const commentLen = view.getUint16(cdOffset + 32, true);
-          const localHeaderOffset = view.getUint32(cdOffset + 42, true);
-          const fileNameBytes = bytes.slice(cdOffset + 46, cdOffset + 46 + fileNameLen);
-          const fileName = textDecoder.decode(fileNameBytes);
-          const localNameLen = view.getUint16(localHeaderOffset + 26, true);
-          const localExtraLen = view.getUint16(localHeaderOffset + 28, true);
-          const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
-          const compressedData = bytes.slice(dataStart, dataStart + compSize);
-          if (!fileName.endsWith("/")) {
-            if (compression === 0) files[fileName] = compressedData;
-            else if (compression === 8) {
-              const ds = new DecompressionStream("deflate-raw");
-              const writer = ds.writable.getWriter();
-              writer.write(compressedData);
-              writer.close();
-              const resp = new Response(ds.readable);
-              files[fileName] = new Uint8Array(await resp.arrayBuffer());
-            }
-          }
-          cdOffset += 46 + fileNameLen + extraLen + commentLen;
-        }
-        return files;
-      }
-      function colLetterToIndex(letters) {
-        let col = 0;
-        for (let i = 0; i < letters.length; i++) { col = col * 26 + (letters.charCodeAt(i) - 64); }
-        return col - 1;
-      }
-      function indexToColLetter(idx) {
-        let s = ""; idx++;
-        while (idx > 0) {
-          let mod = (idx - 1) % 26;
-          s = String.fromCharCode(65 + mod) + s;
-          idx = Math.floor((idx - mod) / 26);
-        }
-        return s;
-      }
-      async function readWorkbook(arrayBuffer) {
-        const files = await unzipEntries(arrayBuffer);
-        const parser = new DOMParser();
-        const sharedStrings = [];
-        if (files["xl/sharedStrings.xml"]) {
-          const ssXml = textDecoder.decode(files["xl/sharedStrings.xml"]);
-          const siNodes = parser.parseFromString(ssXml, "application/xml").getElementsByTagName("si");
-          for (let i = 0; i < siNodes.length; i++) {
-            const tNodes = siNodes[i].getElementsByTagName("t");
-            let fullText = "";
-            for (let j = 0; j < tNodes.length; j++) fullText += tNodes[j].textContent || "";
-            sharedStrings.push(fullText);
-          }
-        }
-        const dateStyleIndices = new Set();
-        if (files["xl/styles.xml"]) {
-          const stylesDoc = parser.parseFromString(textDecoder.decode(files["xl/styles.xml"]), "application/xml");
-          const customDateFormats = new Set();
-          const numFmts = stylesDoc.getElementsByTagName("numFmt");
-          for (let i = 0; i < numFmts.length; i++) {
-            const id = parseInt(numFmts[i].getAttribute("numFmtId"), 10);
-            const code = (numFmts[i].getAttribute("formatCode") || "").toLowerCase();
-            if (/[ymd]/.test(code)) customDateFormats.add(id);
-          }
-          const cellXfs = stylesDoc.getElementsByTagName("cellXfs")[0];
-          if (cellXfs) {
-            const xfs = cellXfs.getElementsByTagName("xf");
-            for (let i = 0; i < xfs.length; i++) {
-              const numFmtId = parseInt(xfs[i].getAttribute("numFmtId") || "0", 10);
-              if ((numFmtId >= 14 && numFmtId <= 22) || customDateFormats.has(numFmtId)) dateStyleIndices.add(i);
-            }
-          }
-        }
-        const wbDoc = parser.parseFromString(textDecoder.decode(files["xl/workbook.xml"]), "application/xml");
-        const relsMap = {};
-        if (files["xl/_rels/workbook.xml.rels"]) {
-          const relNodes = parser.parseFromString(textDecoder.decode(files["xl/_rels/workbook.xml.rels"]), "application/xml").getElementsByTagName("Relationship");
-          for (let i = 0; i < relNodes.length; i++) {
-            let target = relNodes[i].getAttribute("Target") || "";
-            if (target.startsWith("/")) target = target.slice(1);
-            if (!target.startsWith("xl/")) target = "xl/" + target;
-            relsMap[relNodes[i].getAttribute("Id")] = target;
-          }
-        }
-        const sheetNodes = wbDoc.getElementsByTagName("sheet");
-        const sheets = [];
-        for (let i = 0; i < sheetNodes.length; i++) {
-          const name = sheetNodes[i].getAttribute("name") || ("Sheet" + (i + 1));
-          const rId = sheetNodes[i].getAttribute("r:id") || sheetNodes[i].getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
-          const targetPath = relsMap[rId] || ("xl/worksheets/sheet" + (i + 1) + ".xml");
-          if (!files[targetPath]) continue;
-          const sheetDoc = parser.parseFromString(textDecoder.decode(files[targetPath]), "application/xml");
-          const rowNodes = sheetDoc.getElementsByTagName("row");
-          const rows = [];
-          for (let r = 0; r < rowNodes.length; r++) {
-            const cNodes = rowNodes[r].getElementsByTagName("c");
-            const rowArr = [];
-            for (let c = 0; c < cNodes.length; c++) {
-              const cell = cNodes[c];
-              const ref = cell.getAttribute("r") || "";
-              const colIdx = ref.match(/^([A-Z]+)/) ? colLetterToIndex(RegExp.$1) : c;
-              const type = cell.getAttribute("t");
-              const styleIdx = parseInt(cell.getAttribute("s") || "-1", 10);
-              let val = "";
-              if (type === "inlineStr") {
-                val = cell.getElementsByTagName("t")[0]?.textContent || "";
-              } else {
-                const raw = cell.getElementsByTagName("v")[0]?.textContent || "";
-                if (type === "s") val = sharedStrings[parseInt(raw, 10)] ?? "";
-                else if (type === "str" || type === "b") val = raw;
-                else if (raw !== "") {
-                  const num = Number(raw);
-                  val = (!isNaN(num) && dateStyleIndices.has(styleIdx)) ? excelSerialToISO(num) : (!isNaN(num) ? num : raw);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أكاديمية الفائزين - نظام إدارة الأكاديمية والتعليم عن بُعد</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emeraldDark: '#064e3b',
+                        emeraldLight: '#046c4e',
+                        goldRoyale: '#d97706',
+                        goldHover: '#b45309',
+                        sandLight: '#f8f9fa',
+                        creamBg: '#faf9f6',
+                        navyDark: '#0b0f19',
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    }
                 }
-              }
-              rowArr[colIdx] = val;
             }
-            rows.push(rowArr);
-          }
-          sheets.push({ name, rows });
         }
-        return sheets;
-      }
-      function excelSerialToISO(serial) {
-        const utcDays = Math.floor(serial - 25569);
-        const date = new Date(utcDays * 86400 * 1000);
-        if (isNaN(date.getTime())) return String(serial);
-        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-      }
-      function escapeXml(str) {
-        return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-      }
-      function createZip(fileEntries) {
-        const localParts = []; const centralParts = []; let offset = 0;
-        for (const entry of fileEntries) {
-          const nameBytes = textEncoder.encode(entry.name);
-          const dataBytes = typeof entry.data === "string" ? textEncoder.encode(entry.data) : entry.data;
-          const crc = crc32(dataBytes);
-          const localHeader = new Uint8Array(30 + nameBytes.length);
-          const lv = new DataView(localHeader.buffer);
-          lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true);
-          lv.setUint16(8, 0, true); lv.setUint32(14, crc, true);
-          lv.setUint32(18, dataBytes.length, true); lv.setUint32(22, dataBytes.length, true);
-          lv.setUint16(26, nameBytes.length, true); localHeader.set(nameBytes, 30);
-          localParts.push(localHeader, dataBytes);
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f6f8; color: #1e293b; }
+        .gold-gradient { background: linear-gradient(135deg, #d97706 0%, #fef3c7 50%, #b45309 100%); }
+        .emerald-gradient { background: linear-gradient(135deg, #064e3b 0%, #046c4e 100%); }
+        .custom-glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        @media print {
+            body * { visibility: hidden; }
+            #printableInvoice, #printableInvoice * { visibility: visible; }
+            #printableInvoice { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="antialiased custom-scrollbar flex flex-col min-h-screen">
 
-          const centralHeader = new Uint8Array(46 + nameBytes.length);
-          const cv = new DataView(centralHeader.buffer);
-          cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
-          cv.setUint16(8, 0x0800, true); cv.setUint32(16, crc, true);
-          cv.setUint32(20, dataBytes.length, true); cv.setUint32(24, dataBytes.length, true);
-          cv.setUint16(28, nameBytes.length, true); cv.setUint32(42, offset, true);
-          centralHeader.set(nameBytes, 46);
-          centralParts.push(centralHeader);
-          offset += localHeader.length + dataBytes.length;
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 bg-emeraldDark text-white shadow-lg border-b border-amber-500/40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center justify-between h-20">
+                
+                <!-- Logo & Brand (أكاديمية الفائزين) -->
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-amber-600 text-2xl font-black shadow-md border-2 border-amber-400 p-1">
+                        <i class="fa-solid fa-kaaba"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl font-black text-amber-300 tracking-wide">أكاديمية الفائزين</span>
+                            <span class="bg-amber-500 text-emeraldDark text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">الإصدار الشامل</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-200">تحفيظ القرآن الكريم واللغة العربية والتعليم عن بُعد</p>
+                    </div>
+                </div>
+
+                <!-- Main Switcher Tabs (3 Interfaces) -->
+                <nav class="hidden md:flex items-center bg-emeraldLight/50 p-1.5 rounded-2xl border border-emerald-400/30">
+                    <button onclick="selectPortal('adminPortal')" id="nav-adminPortal" class="portal-nav-btn active px-5 py-2 rounded-xl text-xs font-bold transition-all bg-amber-500 text-emeraldDark shadow-md">
+                        <i class="fa-solid fa-user-shield ml-1.5"></i>واجهة المشرف والمدير
+                    </button>
+                    <button onclick="selectPortal('teacherPortal')" id="nav-teacherPortal" class="portal-nav-btn px-5 py-2 rounded-xl text-xs font-bold text-emerald-100 hover:text-white transition-all">
+                        <i class="fa-solid fa-chalkboard-user ml-1.5"></i>واجهة المعلم
+                    </button>
+                    <button onclick="selectPortal('studentPortal')" id="nav-studentPortal" class="portal-nav-btn px-5 py-2 rounded-xl text-xs font-bold text-emerald-100 hover:text-white transition-all">
+                        <i class="fa-solid fa-graduation-cap ml-1.5"></i>واجهة الطالب / ولي الأمر
+                    </button>
+                </nav>
+
+                <!-- Quick Action Header Tools -->
+                <div class="flex items-center gap-3">
+                    <!-- WhatsApp Central Quick Launcher -->
+                    <button onclick="openWhatsAppModal('تواصل عام', 'مرحباً بكم في أكاديمية الفائزين')" class="relative p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-md transition-all flex items-center gap-2 text-xs font-bold">
+                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                        <span class="hidden sm:inline">مركز الواتساب</span>
+                        <span class="w-2 h-2 rounded-full bg-yellow-300 animate-ping"></span>
+                    </button>
+
+                    <!-- User Account Badge -->
+                    <div class="hidden lg:flex items-center gap-2 bg-emeraldLight px-3 py-1.5 rounded-xl border border-emerald-400/20 text-xs">
+                        <i class="fa-solid fa-circle-user text-amber-400 text-lg"></i>
+                        <div class="text-right">
+                            <span class="block font-bold text-white leading-none" id="currentUserDisplay">المدير العام</span>
+                            <span class="text-[10px] text-emerald-200">مدير النظام</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN PORTALS CONTAINERS -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full">
+
+        <!-- ========================================================================= -->
+        <!-- 1. ADMIN PORTAL (واجهة المشرفين والمديرين) -->
+        <!-- ========================================================================= -->
+        <section id="adminPortal" class="portal-section space-y-6">
+            
+            <!-- Google Forms Integration Smart Banner -->
+            <div class="bg-gradient-to-r from-emeraldDark via-emeraldLight to-emeraldDark text-white p-5 rounded-3xl shadow-md border-2 border-amber-500/40 space-y-3">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500 text-emeraldDark flex items-center justify-center text-2xl font-black shrink-0 shadow-md">
+                            <i class="fa-solid fa-file-signature"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-sm text-amber-300">رابط نموذج تسجيل الطلاب الجدد (Google Forms)</h4>
+                                <span class="bg-amber-500 text-emeraldDark text-[10px] font-extrabold px-2 py-0.5 rounded-full">تلقائي</span>
+                            </div>
+                            <p class="text-xs text-emerald-100 mt-0.5">أرسل هذا الرابط للطلاب الجدد لتعبئة بياناتهم واستيرادها بنقرة واحدة</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Action Buttons for Google Forms Link -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="copyFormUrl()" class="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5">
+                            <i class="fa-solid fa-copy text-amber-400"></i> نسخ الرابط
+                        </button>
+                        <a href="https://forms.gle/adCcZT3ZRUacAzsR7" target="_blank" class="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-emerald-300"></i> فتح النموذج
+                        </a>
+                        <button onclick="shareFormWhatsApp()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> إرسال عبر الواتساب
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Readonly URL Field Display -->
+                <div class="flex items-center gap-2 bg-black/20 p-2 rounded-xl border border-white/10">
+                    <i class="fa-solid fa-link text-amber-400 text-xs px-2"></i>
+                    <input type="text" id="gformUrlInput" readonly value="https://forms.gle/adCcZT3ZRUacAzsR7" class="bg-transparent text-amber-200 font-mono text-xs w-full focus:outline-none select-all dir-ltr text-right">
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    
+                    <!-- Admin Sidebar Navigation -->
+                    <aside class="w-full lg:w-72 shrink-0 bg-sandLight p-4 rounded-2xl border border-gray-200 space-y-1">
+                        <h4 class="text-xs font-black text-emeraldDark uppercase tracking-wider mb-3 px-3">لوحة التحكم والتنفيذ</h4>
+                        
+                        <button onclick="showAdminSection('studentsSec')" id="abtn-studentsSec" class="admin-tab-btn active w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 transition-all bg-emeraldDark text-white">
+                            <i class="fa-solid fa-users text-amber-400"></i> 1.1 تسجيل بيانات الطلاب
+                        </button>
+                        <button onclick="showAdminSection('teachersSec')" id="abtn-teachersSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-chalkboard-teacher text-emeraldDark"></i> 1.2 تسجيل بيانات المعلمين
+                        </button>
+                        <button onclick="showAdminSection('timezonesSec')" id="abtn-timezonesSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-earth-americas text-emeraldDark"></i> 1.3 المدن وفرق التوقيت
+                        </button>
+                        <button onclick="showAdminSection('subjectsSec')" id="abtn-subjectsSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-book-open text-emeraldDark"></i> 1.4 المواد والمناهج
+                        </button>
+                        <button onclick="showAdminSection('schedulesSec')" id="abtn-schedulesSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-calendar-alt text-emeraldDark"></i> 1.5 جدولة الحصص المتقدمة
+                        </button>
+                        <button onclick="showAdminSection('teacherFinancialsSec')" id="abtn-teacherFinancialsSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-calculator text-emeraldDark"></i> 1.6 رواتب وحساب المعلمين
+                        </button>
+                        <button onclick="showAdminSection('studentInvoicesSec')" id="abtn-studentInvoicesSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-file-invoice-dollar text-emeraldDark"></i> 1.7 فواتير وحساب الطلاب
+                        </button>
+                        <button onclick="showAdminSection('librarySec')" id="abtn-librarySec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
+                            <i class="fa-solid fa-book-bookmark text-emeraldDark"></i> 1.9 إضافة كتب للمكتبة
+                        </button>
+                        <button onclick="showAdminSection('whatsappGatewaySec')" id="abtn-whatsappGatewaySec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all bg-green-50 text-green-900 border border-green-200">
+                            <i class="fa-brands fa-whatsapp text-green-600"></i> 1.13 إعدادات ربط الواتساب
+                        </button>
+                    </aside>
+
+                    <!-- Admin Main Workspace Panel -->
+                    <div class="flex-1 min-w-0">
+                        
+                        <!-- 1.1 STUDENTS MANAGEMENT -->
+                        <div id="studentsSec" class="admin-view-panel space-y-6">
+                            
+                            <!-- Controls & Pending Webhook Orders Banner -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-creamBg p-4 rounded-2xl border border-gray-200">
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">تسجيل وإدارة بيانات الطلاب</h3>
+                                    <p class="text-xs text-gray-500">إضافة وتعديل بيانات الطلاب أو استيراد الطلبات من النموذج</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="openModal('pendingSubmissionsModal')" class="bg-amber-500 hover:bg-amber-600 text-emeraldDark px-4 py-2 rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition-all">
+                                        <i class="fa-solid fa-bell animate-bounce"></i>
+                                        <span>طلبات التسجيل الجديدة (Google Forms)</span>
+                                        <span id="pendingBadge" class="bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">2</span>
+                                    </button>
+
+                                    <button onclick="exportTableToExcel('studentsTable', 'بيانات_الطلاب')" class="bg-emeraldDark text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-emeraldLight">
+                                        <i class="fa-solid fa-file-excel text-amber-400"></i> تصدير Excel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- New Student Form (Updated Specification) -->
+                            <form onsubmit="addStudentSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-gray-200 text-xs font-semibold">
+                                <div>
+                                    <label class="block mb-1 text-gray-700">اسم الطالب رباعي *</label>
+                                    <input type="text" id="stName" required placeholder="مثال: عبد العزيز الشمري" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                </div>
+                                
+                                <div>
+                                    <label class="block mb-1 text-gray-700">الدولة والمدينة *</label>
+                                    <select id="stCity" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                        <option value="مصر - القاهرة" selected>مصر (القاهرة - GMT+2)</option>
+                                        <option value="مصر - الإسكندرية">مصر (الإسكندرية - GMT+2)</option>
+                                        <option value="السعودية - الرياض">السعودية (الرياض - GMT+3)</option>
+                                        <option value="الإمارات - دبي">الإمارات (دبي - GMT+4)</option>
+                                        <option value="الكويت - الكويت">الكويت (الكويت - GMT+3)</option>
+                                        <option value="قطر - الدوحة">قطر (الدوحة - GMT+3)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1 text-gray-700">سعر الباقة *</label>
+                                    <div class="flex gap-2">
+                                        <select id="stPackage" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                            <option value="باقة 4 حصص - 200 جنيه">باقة 4 حصص شهرياً (200 جنيه)</option>
+                                            <option value="باقة 8 حصص - 350 جنيه" selected>باقة 8 حصص شهرياً (350 جنيه)</option>
+                                            <option value="باقة 12 حصة - 500 جنيه">باقة 12 حصة شهرياً (500 جنيه)</option>
+                                            <option value="باقة قرآن مكثف - 700 جنيه">باقة القرآن المكثف (700 جنيه)</option>
+                                        </select>
+                                        <button type="button" onclick="openModal('newPackageModal')" class="bg-emeraldDark text-white px-3 py-2 rounded-xl text-xs hover:bg-emeraldLight whitespace-nowrap">
+                                            + باقة جديدة
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1 text-gray-700">رقم الواتساب للطالب / ولي الأمر *</label>
+                                    <input type="tel" id="stWhatsapp" required placeholder="+201012345678" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1 text-gray-700">رقم جوال آخر (اختياري)</label>
+                                    <input type="tel" id="stPhone2" placeholder="+201122334455" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1 text-gray-700">البريد الإلكتروني الرئيسي *</label>
+                                    <input type="email" id="stEmail" required placeholder="student@gmail.com" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none">
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1 text-gray-700">ملاحظات إضافية</label>
+                                    <textarea id="stNotes" rows="2" placeholder="أية مستويات سابقة أو ملاحظات..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-emeraldDark outline-none"></textarea>
+                                </div>
+
+                                <div class="md:col-span-2 flex justify-end gap-2 pt-2">
+                                    <button type="submit" class="emerald-gradient text-white px-6 py-2.5 rounded-xl font-bold hover:opacity-90 shadow">
+                                        <i class="fa-solid fa-plus-circle ml-1"></i> حفظ بيانات الطالب في أكاديمية الفائزين
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Students List Table -->
+                            <div class="overflow-x-auto rounded-2xl border border-gray-200">
+                                <table id="studentsTable" class="w-full text-right text-xs">
+                                    <thead class="bg-emeraldDark text-white font-bold">
+                                        <tr>
+                                            <th class="p-3">اسم الطالب</th>
+                                            <th class="p-3">الدولة والمدينة</th>
+                                            <th class="p-3">الباقة المختارة</th>
+                                            <th class="p-3">رقم الواتساب</th>
+                                            <th class="p-3">حالة الحساب</th>
+                                            <th class="p-3 text-center">التحكم والإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentTableBody" class="divide-y divide-gray-200 bg-white font-medium">
+                                        <!-- JS Loaded -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 1.2 TEACHERS MANAGEMENT -->
+                        <div id="teachersSec" class="admin-view-panel hidden space-y-6">
+                            <div class="flex justify-between items-center bg-creamBg p-4 rounded-2xl border border-gray-200">
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-base">تسجيل بيانات المعلمين</h3>
+                                    <p class="text-xs text-gray-500">إدارة الكادر التعليمي، تفعيل رقم الواتساب، وتحديد المحفظة الإلكترونية</p>
+                                </div>
+                            </div>
+
+                            <form onsubmit="addTeacherSubmit(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 text-xs font-semibold">
+                                <div>
+                                    <label class="block mb-1 text-gray-700">كود المعلم</label>
+                                    <input type="text" id="tcCode" value="TCH-88" readonly class="w-full p-2 bg-gray-100 rounded-lg border">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-gray-700">اسم المعلم الثلاثي *</label>
+                                    <input type="text" id="tcName" required placeholder="الشيخ / محمود خليفة" class="w-full p-2 rounded-lg border border-gray-300">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-gray-700">سعر الساعة الاستحقاقي (جنيه/$)</label>
+                                    <input type="number" id="tcRate" value="100" class="w-full p-2 rounded-lg border border-gray-300">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-gray-700">البريد الإلكتروني *</label>
+                                    <input type="email" id="tcEmail" required placeholder="teacher@alfaizeen.com" class="w-full p-2 rounded-lg border border-gray-300">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-gray-700">رقم الواتساب *</label>
+                                    <input type="tel" id="tcWhatsapp" required placeholder="+201000000000" class="w-full p-2 rounded-lg border border-gray-300">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-gray-700">رقم المحفظة / PayPal *</label>
+                                    <input type="text" id="tcWallet" required placeholder="فودافون كاش أو 01000..." class="w-full p-2 rounded-lg border border-gray-300">
+                                </div>
+                                <div class="md:col-span-3 flex justify-end">
+                                    <button type="submit" class="emerald-gradient text-white px-6 py-2.5 rounded-xl font-bold">
+                                        <i class="fa-solid fa-plus-circle ml-1"></i> اعتماد المعلم في منظومة أكاديمية الفائزين
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div class="overflow-x-auto rounded-2xl border border-gray-200">
+                                <table id="teachersTable" class="w-full text-right text-xs">
+                                    <thead class="bg-emeraldDark text-white font-bold">
+                                        <tr>
+                                            <th class="p-3">كود المعلم</th>
+                                            <th class="p-3">الاسم</th>
+                                            <th class="p-3">سعر الساعة</th>
+                                            <th class="p-3">البريد/الواتساب</th>
+                                            <th class="p-3">المحفظة الإلكترونية</th>
+                                            <th class="p-3">الحالة</th>
+                                            <th class="p-3 text-center">التحكم</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teachersTableBody" class="divide-y divide-gray-200 bg-white font-medium">
+                                        <!-- JS Loaded -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 1.3 TIMEZONES MANAGEMENT -->
+                        <div id="timezonesSec" class="admin-view-panel hidden space-y-6">
+                            <div class="bg-creamBg p-4 rounded-2xl border border-gray-200">
+                                <h3 class="font-bold text-gray-900 text-base">تسجيل المدن وفرق التوقيت والتوقيت الصيفي/الشتوي</h3>
+                            </div>
+
+                            <div class="grid md:grid-cols-2 gap-6 text-xs">
+                                <div class="bg-white p-5 rounded-2xl border border-gray-200 space-y-4 font-semibold">
+                                    <h4 class="font-bold text-emeraldDark text-sm">تعديل توقيت دولة أو مدينة</h4>
+                                    <div>
+                                        <label class="block mb-1">اختر المدينة</label>
+                                        <select class="w-full p-2.5 rounded-xl border">
+                                            <option selected>مصر (القاهرة - GMT+2)</option>
+                                            <option>السعودية (الرياض - GMT+3)</option>
+                                            <option>الإمارات (دبي - GMT+4)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border">
+                                        <input type="checkbox" id="dstCheck" class="w-4 h-4 text-emeraldDark rounded">
+                                        <label for="dstCheck" class="cursor-pointer">تفعيل التوقيت الصيفي (+1 ساعة تلقائياً)</label>
+                                    </div>
+                                    <button onclick="alert('تم تحديث التوقيت الصيفي/الشتوي بنجاح دون المساس بمواعيد الطلاب والمعلمين')" class="w-full py-2.5 emerald-gradient text-white rounded-xl font-bold">
+                                        حفظ إعدادات التوقيت
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OTHER PANELS (Subjects, Schedules, Financials, etc.) -->
+                        <div id="subjectsSec" class="admin-view-panel hidden space-y-4">
+                            <h3 class="font-bold text-gray-900 text-base">1.4 المواد والبرامج المقدمة من الأكاديمية</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs font-bold" id="subjectsGrid"></div>
+                        </div>
+
+                        <div id="schedulesSec" class="admin-view-panel hidden space-y-4">
+                            <h3 class="font-bold text-gray-900 text-base">1.5 جدولة الحصص الجارية</h3>
+                            <div class="overflow-x-auto rounded-2xl border border-gray-200">
+                                <table class="w-full text-right text-xs">
+                                    <thead class="bg-emeraldDark text-white">
+                                        <tr><th class="p-3">الطالب</th><th class="p-3">المعلم</th><th class="p-3">اليوم</th><th class="p-3">توقيت مصر (المعلم)</th><th class="p-3">الرابط</th></tr>
+                                    </thead>
+                                    <tbody id="schedulesTableBody" class="divide-y divide-gray-200 bg-white"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="teacherFinancialsSec" class="admin-view-panel hidden space-y-4">
+                            <h3 class="font-bold text-gray-900 text-base">1.6 تقارير حساب المعلمين وتحديد الدورة المحاسبية</h3>
+                            <div class="bg-white p-4 rounded-2xl border text-xs font-semibold">
+                                إجمالي مستحقات المعلمين لشهر نوفمبر: <span class="text-emeraldDark font-bold text-sm">4,850 جنيه</span>
+                            </div>
+                        </div>
+
+                        <div id="studentInvoicesSec" class="admin-view-panel hidden space-y-4">
+                            <h3 class="font-bold text-gray-900 text-base">1.7 فواتير وحساب الطلاب</h3>
+                            <div class="bg-white p-6 rounded-2xl border text-xs space-y-3">
+                                <h4 class="font-bold text-emeraldDark text-sm">معاينة فاتورة طالب - أكاديمية الفائزين</h4>
+                                <p>الطالب: مالك محمود خليفة | الباقة: 8 حصص (350 جنيه)</p>
+                                <button onclick="window.print()" class="bg-emeraldDark text-white px-4 py-2 rounded-xl font-bold">طباعة الفاتورة PDF</button>
+                            </div>
+                        </div>
+
+                        <div id="librarySec" class="admin-view-panel hidden space-y-4">
+                            <h3 class="font-bold text-gray-900 text-base">1.9 مكتبة الوسائط والكتب</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" id="libraryCardsGrid"></div>
+                        </div>
+
+                        <!-- 1.13 WHATSAPP GATEWAY INTEGRATION -->
+                        <div id="whatsappGatewaySec" class="admin-view-panel hidden space-y-6">
+                            <div class="bg-gradient-to-r from-green-800 to-emerald-900 text-white p-5 rounded-2xl shadow-sm space-y-2">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-brands fa-whatsapp text-3xl text-green-400"></i>
+                                    <div>
+                                        <h3 class="font-bold text-base">إعدادات ربط الواتساب</h3>
+                                        <p class="text-xs text-green-100">أدخل رقم الواتساب الخاص بالأكاديمية واختر التنبيهات التي تريد تفعيلها</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form onsubmit="saveWhatsAppSettings(event)" class="bg-white p-6 rounded-2xl border border-gray-200 space-y-4 text-xs font-semibold">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">رقم الواتساب الخاص بالأكاديمية *</label>
+                                        <input type="tel" id="waSenderNumber" required placeholder="+201012345678" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-600 outline-none">
+                                    </div>
+
+                                    <div>
+                                        <label class="block mb-1 text-gray-700">مفتاح الربط (API Key) - اختياري عند التشغيل الفعلي</label>
+                                        <input type="password" id="waToken" placeholder="أدخل مفتاح الربط إذا كان متوفراً" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-600 outline-none font-mono">
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <h4 class="font-bold text-gray-800 text-xs">متى يتم إرسال رسائل الواتساب؟</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <label class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border cursor-pointer">
+                                        <input type="checkbox" id="autoWaWelcome" checked class="w-4 h-4 text-green-600 rounded">
+                                        <span>إرسال رسالة ترحيب عند تسجيل الطالب</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border cursor-pointer">
+                                        <input type="checkbox" id="autoWaRemind" checked class="w-4 h-4 text-green-600 rounded">
+                                        <span>تذكير الطالب والمعلم قبل الحصة بـ 10 دقائق</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border cursor-pointer">
+                                        <input type="checkbox" id="autoWaInvoice" checked class="w-4 h-4 text-green-600 rounded">
+                                        <span>إرسال الفاتورة الشهرية وتأكيد الدفع</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border cursor-pointer">
+                                        <input type="checkbox" id="autoWaCancel" checked class="w-4 h-4 text-green-600 rounded">
+                                        <span>إشعار الطالب والمدير عند إلغاء الحصة</span>
+                                    </label>
+                                </div>
+
+                                <div class="flex justify-end items-center pt-3">
+                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-xl shadow">
+                                        <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ إعدادات الواتساب
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- 2. TEACHER PORTAL (واجهة المعلم) -->
+        <!-- ========================================================================= -->
+        <section id="teacherPortal" class="portal-section hidden space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">إجمالي الحصص المنفذة</span>
+                        <div class="text-2xl font-black text-emeraldDark mt-1">18 حصة</div>
+                    </div>
+                    <i class="fa-solid fa-chalkboard text-2xl text-emeraldDark"></i>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">ساعات الحضور</span>
+                        <div class="text-2xl font-black text-amber-600 mt-1">14.5 ساعة</div>
+                    </div>
+                    <i class="fa-solid fa-clock text-2xl text-amber-600"></i>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">الرصيد الحقيقي المكتسب</span>
+                        <div class="text-2xl font-black text-green-600 mt-1">1,450 جنيه</div>
+                    </div>
+                    <i class="fa-solid fa-wallet text-2xl text-green-600"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- 3. STUDENT PORTAL (واجهة الطالب وولي الأمر) -->
+        <!-- ========================================================================= -->
+        <section id="studentPortal" class="portal-section hidden space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">الباقة المشترك بها</span>
+                        <div class="text-lg font-bold text-emeraldDark mt-1">باقة 8 حصص شهرياً</div>
+                    </div>
+                    <i class="fa-solid fa-graduation-cap text-2xl text-emeraldDark"></i>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">الحصص المتبقية</span>
+                        <div class="text-2xl font-black text-amber-600 mt-1">3 حصص</div>
+                    </div>
+                    <i class="fa-solid fa-hourglass-half text-2xl text-amber-600"></i>
+                </div>
+                <div class="bg-white p-5 rounded-3xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-gray-500">حالة الفاتورة</span>
+                        <div class="text-lg font-bold text-green-600 mt-1">مدفوعة بالكامل <i class="fa-solid fa-check-circle"></i></div>
+                    </div>
+                    <i class="fa-solid fa-shield-check text-2xl text-green-600"></i>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODALS SYSTEM -->
+
+    <!-- Pending Google Forms Submissions Modal -->
+    <div id="pendingSubmissionsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl text-right relative space-y-4">
+            <button onclick="closeModal('pendingSubmissionsModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            
+            <div class="flex items-center gap-3 border-b border-gray-200 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-inbox"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-gray-900">طلبات التسجيل الواردة من Google Forms</h3>
+                    <p class="text-xs text-gray-500">اضغط "قبول وإضافة الطالب" لاعتماد حسابه بأكاديمية الفائزين وإرسال رسالة الترحيب</p>
+                </div>
+            </div>
+
+            <div class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar p-1">
+                <div id="sub-card-1" class="bg-sandLight p-4 rounded-2xl border border-gray-200 space-y-2 text-xs">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-bold">طلب جديد #FORM-104</span>
+                            <h4 class="font-bold text-gray-900 text-sm mt-1">أحمد محمود الشريف</h4>
+                        </div>
+                        <span class="text-[10px] text-gray-400">منذ 10 دقائق</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-gray-700 bg-white p-2.5 rounded-xl border border-gray-100">
+                        <div><strong class="text-gray-500">الدولة:</strong> مصر - المنصورة</div>
+                        <div><strong class="text-gray-500">الواتساب:</strong> +201099887711</div>
+                        <div><strong class="text-gray-500">الباقة:</strong> باقة 8 حصص - 350 جنيه</div>
+                        <div><strong class="text-gray-500">البريد:</strong> ahmed@gmail.com</div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-1">
+                        <button onclick="acceptFormSubmission('sub-card-1', 'أحمد محمود الشريف', 'مصر - المنصورة', 'باقة 8 حصص - 350 جنيه', '+201099887711', 'ahmed@gmail.com')" class="emerald-gradient text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-user-check"></i> قبول وإضافة الطالب ورسالة الترحيب
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Package Modal -->
+    <div id="newPackageModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-right relative space-y-4">
+            <button onclick="closeModal('newPackageModal')" class="absolute top-4 left-4 text-gray-400"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-bold text-gray-900 text-base">إضافة باقة جديدة للأكاديمية</h3>
+            <form onsubmit="event.preventDefault(); addNewPackage();" class="space-y-3 text-xs font-semibold">
+                <div>
+                    <label class="block mb-1 text-gray-700">اسم الباقة</label>
+                    <input type="text" id="pkgName" required placeholder="مثال: باقة التجويد والقرآن المكثف" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none">
+                </div>
+                <div>
+                    <label class="block mb-1 text-gray-700">سعر الباقة</label>
+                    <input type="text" id="pkgPrice" required placeholder="مثال: 600 جنيه" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('newPackageModal')" class="px-4 py-2 rounded-xl bg-gray-100 font-bold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-emeraldDark font-bold">إضافة الباقة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- WhatsApp Modal -->
+    <div id="whatsappModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-right relative space-y-4">
+            <button onclick="closeModal('whatsappModal')" class="absolute top-4 left-4 text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="flex items-center gap-2 text-green-600 font-bold text-base">
+                <i class="fa-brands fa-whatsapp text-2xl"></i>
+                <span id="waModalTitle">إرسال عبر الواتساب</span>
+            </div>
+            
+            <!-- Recipient Phone Input Added -->
+            <div class="space-y-1 text-xs">
+                <label class="block font-bold text-gray-700">اختر رقماً مسجلاً أو اكتب رقم المرسل إليه:</label>
+                <select id="waStudentQuickSelect" onchange="pickQuickWhatsappNumber()" class="w-full p-2 mb-2 rounded-xl border border-gray-300 bg-gray-50 text-xs font-semibold outline-none">
+                    <option value="">-- اختر من أرقام الطلاب المسجلين (اختياري) --</option>
+                </select>
+                <input type="tel" id="waRecipientNumber" placeholder="أدخل رقم المرسل إليه (مثال: 00201012345678)" class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-600 outline-none font-mono">
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-2xl border border-green-200 text-xs font-semibold space-y-2 text-green-900">
+                <span class="block font-bold text-green-700">نص الرسالة:</span>
+                <p id="waMessageText" class="leading-relaxed bg-white p-3 rounded-xl border border-green-200">...</p>
+                <div id="waDirectLinkBox" class="hidden pt-2 text-[11px] text-emerald-900 bg-amber-50 p-2.5 rounded-xl border border-amber-300 space-y-1">
+                    <p class="font-bold text-amber-800">إذا لم تُفتح نافذة واتساب تلقائياً بسبب حظر النوافذ المنبثقة في المعاينة، استخدم الرابط المباشر:</p>
+                    <a id="waDirectAnchor" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline break-all font-mono"></a>
+                </div>
+            </div>
+            <button onclick="executeWASend()" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md">
+                تأكيد الإرسال عبر الواتساب
+            </button>
+            <div id="waSentLogBox" class="text-[11px] bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-1 max-h-28 overflow-y-auto">
+                <span class="font-bold text-slate-700 block">سجل محاولات الإرسال في هذه الجلسة:</span>
+                <ul id="waSentLogList" class="list-disc pr-4 text-slate-600 space-y-0.5">
+                    <li>لا توجد رسائل مرسلة بعد.</li>
+                </ul>
+            </div>
+            <div id="waStatusFeedback" class="hidden text-xs font-bold p-2.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200"></div>
+        </div>
+    </div>
+
+    <!-- FIREBASE INTEGRATION MODULE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration setup - Uses global environment variables or local placeholders
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyDemoKeyForAlfaizeenAcademy",
+                authDomain: "alfaizeen-app.firebaseapp.com",
+                projectId: "alfaizeen-app",
+                storageBucket: "alfaizeen-app.appspot.com",
+                messagingSenderId: "1234567890",
+                appId: "1:1234567890:web:demo123"
+            };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        // Authentication Handler
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
+        } else {
+            signInAnonymously(auth).catch((err) => console.log("Firebase Auth notice:", err));
         }
-        const centralSize = centralParts.reduce((acc, p) => acc + p.length, 0);
-        const eocd = new Uint8Array(22);
-        const ev = new DataView(eocd.buffer);
-        ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, fileEntries.length, true);
-        ev.setUint16(10, fileEntries.length, true); ev.setUint32(12, centralSize, true);
-        ev.setUint32(16, offset, true);
-        return new Blob([...localParts, ...centralParts, eocd], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      }
-      function writeWorkbook(sheetsData, filename) {
-        let sheetRowsXmlList = sheetsData.map((sheet) => {
-          let rowsXml = "";
-          sheet.rows.forEach((row, rIdx) => {
-            let cellsXml = "";
-            row.forEach((val, cIdx) => {
-              const ref = indexToColLetter(cIdx) + (rIdx + 1);
-              if (typeof val === "number" && !isNaN(val)) cellsXml += `<c r="${ref}"><v>${val}</v></c>`;
-              else cellsXml += `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(val)}</t></is></c>`;
-            });
-            rowsXml += `<row r="${rIdx + 1}">${cellsXml}</row>`;
-          });
-          return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1"/></sheetViews><sheetData>${rowsXml}</sheetData></worksheet>`;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                console.log("Firebase Authenticated Successfully:", user.uid);
+                setupRealtimeSync();
+            }
         });
-        const files = [
-          { name: "[Content_Types].xml", data: `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetsData.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` },
-          { name: "_rels/.rels", data: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
-          { name: "xl/workbook.xml", data: `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetsData.map((s, i) => `<sheet name="${escapeXml(s.name.slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>` },
-          { name: "xl/_rels/workbook.xml.rels", data: `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetsData.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheetsData.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
-          { name: "xl/styles.xml", data: `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellXfs count="1"><xf/></cellXfs></styleSheet>` }
-        ];
-        sheetRowsXmlList.forEach((xml, idx) => files.push({ name: `xl/worksheets/sheet${idx + 1}.xml`, data: xml }));
-        const blob = createZip(files);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }
-      return { readWorkbook, writeWorkbook };
-    })();
 
-    let allRecords = [];
-    let currentFiltered = [];
-    let currentSummary = [];
-
-    function normalizeArabicDigits(str) {
-      return String(str ?? "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).trim();
-    }
-    function normalizeArabicText(str) {
-      return String(str ?? "").replace(/[\u064B-\u065F]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/\s+/g, " ").trim();
-    }
-    function parseConsumption(val) {
-      if (typeof val === "number") return isNaN(val) ? 0 : val;
-      const num = parseFloat(normalizeArabicDigits(val).replace(/,/g, "").replace(/[^\d.-]/g, ""));
-      return isNaN(num) ? 0 : num;
-    }
-    function parseDateToISO(val) {
-      if (!val) return "";
-      if (typeof val === "number" && val > 20000 && val < 90000) {
-        const utcDays = Math.floor(val - 25569);
-        const d = new Date(utcDays * 86400 * 1000);
-        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-      }
-      const s = normalizeArabicDigits(val);
-      let m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-      if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-      return s;
-    }
-    function detectColumnMapping(headerRow) {
-      const map = { day: -1, date: -1, car: -1, consumption: -1, notes: -1 };
-      headerRow.forEach((cell, idx) => {
-        const h = normalizeArabicText(cell);
-        if (!h) return;
-        if (map.day === -1 && (h === "اليوم" || h.includes("يوم"))) map.day = idx;
-        else if (map.date === -1 && (h === "التاريخ" || h.includes("تاريخ"))) map.date = idx;
-        else if (map.car === -1 && (h.includes("سيار") || h.includes("مركب") || h.includes("لوح"))) map.car = idx;
-        else if (map.consumption === -1 && (h.includes("استهلاك") || h.includes("وقود") || h.includes("بنزين") || h.includes("سولار") || h.includes("كمي"))) map.consumption = idx;
-        else if (map.notes === -1 && (h.includes("ملاحظ") || h.includes("بيان"))) map.notes = idx;
-      });
-      return map;
-    }
-
-    const dropZone = document.getElementById("dropZone");
-    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.style.background = "#dbeafe"; });
-    dropZone.addEventListener("dragleave", () => { dropZone.style.background = "#f8fafc"; });
-    dropZone.addEventListener("drop", (e) => {
-      e.preventDefault(); dropZone.style.background = "#f8fafc";
-      if (e.dataTransfer.files?.length) handleFile(e.dataTransfer.files[0]);
-    });
-    document.getElementById("excelFile").addEventListener("change", (e) => {
-      if (e.target.files?.length) handleFile(e.target.files[0]);
-    });
-
-    async function handleFile(file) {
-      const statusEl = document.getElementById("fileStatus");
-      const errorEl = document.getElementById("errorMsg");
-      statusEl.textContent = "جاري قراءة ومعالجة الملف...";
-      errorEl.style.display = "none";
-      try {
-        if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("يرجى اختيار ملف بصيغة Excel (.xlsx) فقط.");
-        const sheets = await PureXLSX.readWorkbook(await file.arrayBuffer());
-        allRecords = []; const sheetNamesWithData = []; const uniqueCars = new Set();
-        for (const sheet of sheets) {
-          if (!sheet.rows || sheet.rows.length < 2) continue;
-          let headerRowIdx = -1, colMap = null;
-          for (let r = 0; r < Math.min(10, sheet.rows.length); r++) {
-            const candidate = detectColumnMapping(sheet.rows[r] || []);
-            if (candidate.car !== -1 && candidate.consumption !== -1) { headerRowIdx = r; colMap = candidate; break; }
-          }
-          if (headerRowIdx === -1) continue;
-          let sheetCount = 0;
-          for (let r = headerRowIdx + 1; r < sheet.rows.length; r++) {
-            const row = sheet.rows[r] || [];
-            const carVal = String(row[colMap.car] ?? "").trim();
-            if (!carVal || normalizeArabicText(carVal).includes("اجمالي") || normalizeArabicText(carVal).includes("المجموع")) continue;
-            allRecords.push({
-              sheet: sheet.name,
-              day: colMap.day !== -1 ? String(row[colMap.day] ?? "").trim() : "",
-              date: parseDateToISO(colMap.date !== -1 ? row[colMap.date] : ""),
-              car: carVal,
-              consumption: parseConsumption(row[colMap.consumption]),
-              notes: colMap.notes !== -1 ? String(row[colMap.notes] ?? "").trim() : ""
+        // Realtime Data Synchronization from Cloud Firestore
+        function setupRealtimeSync() {
+            if (!currentUser) return;
+            const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+            
+            onSnapshot(studentsCol, (snapshot) => {
+                const cloudStudents = [];
+                snapshot.forEach(doc => {
+                    cloudStudents.push({ id: doc.id, ...doc.data() });
+                });
+                if (cloudStudents.length > 0) {
+                    state.students = cloudStudents;
+                    renderStudents();
+                }
+            }, (error) => {
+                console.warn("Firestore Realtime Sync Notice:", error);
             });
-            uniqueCars.add(carVal);
-            sheetCount++;
-          }
-          if (sheetCount > 0) sheetNamesWithData.push(sheet.name);
         }
-        if (!allRecords.length) throw new Error("لم يتم العثور على بيانات مطابقة للأعمدة المطلوبة.");
 
-        const sheetSelect = document.getElementById("sheetFilter");
-        sheetSelect.innerHTML = `<option value="__ALL__">جميع الشيتات (${sheetNamesWithData.length})</option>`;
-        sheetNamesWithData.forEach(name => sheetSelect.innerHTML += `<option value="${name}">${name}</option>`);
+        // Global Helper to Persist Student Entries to Cloud
+        window.saveStudentToCloud = async function(studentData) {
+            if (!currentUser) return;
+            try {
+                const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+                await addDoc(studentsCol, {
+                    ...studentData,
+                    createdAt: new Date().toISOString()
+                });
+                console.log("Data persisted to Cloud Firestore successfully!");
+            } catch (e) {
+                console.error("Cloud Save Error:", e);
+            }
+        };
+    </script>
 
-        const carSelect = document.getElementById("carFilter");
-        carSelect.innerHTML = `<option value="__ALL__">جميع السيارات (${uniqueCars.size})</option>`;
-        Array.from(uniqueCars).sort((a, b) => a.localeCompare(b, "ar")).forEach(car => carSelect.innerHTML += `<option value="${car}">${car}</option>`);
+    <!-- CORE JAVASCRIPT LOGIC -->
+    <script>
+        const state = {
+            students: [
+                { name: 'مالك محمود خليفة', city: 'مصر - القاهرة', pkg: 'باقة 8 حصص - 350 جنيه', wa: '+201099887766', status: 'نشط' }
+            ],
+            teachers: [
+                { code: 'TCH-88', name: 'الشيخ / محمود خليفة', rate: 100, email: 'teacher@alfaizeen.com', wa: '+201000000000', wallet: 'فودافون كاش (01000...)', status: 'نشط' }
+            ],
+            subjects: ['القرآن الكريم والتلاوة', 'أحكام التجويد', 'اللغة العربية والإنشاء', 'نور البيان', 'الفقه الميسر', 'السيرة النبوية'],
+            schedules: [
+                { student: 'مالك محمود خليفة', teacher: 'الشيخ محمود خليفة', day: 'السبت والأربعاء', from: '16:00', link: 'https://zoom.us' }
+            ],
+            library: [
+                { title: 'كتاب نور البيان لتعليم القراءة', type: 'كتاب PDF' },
+                { title: 'تسجيل شرح أحكام التجويد', type: 'فيديو تعليمي' }
+            ]
+        };
 
-        statusEl.textContent = `تم تحميل الملف "${file.name}" بنجاح (${allRecords.length} سجل).`;
-        document.getElementById("controlsCard").style.display = "block";
-        document.getElementById("reportCard").style.display = "block";
-        applyFilters();
-      } catch (err) {
-        statusEl.textContent = "";
-        errorEl.textContent = "خطأ: " + err.message;
-        errorEl.style.display = "block";
-      }
-    }
+        window.onload = function() {
+            renderStudents();
+            renderTeachers();
+            renderSubjects();
+            renderSchedules();
+            renderLibrary();
+        };
 
-    function resetFilters() {
-      document.getElementById("sheetFilter").value = "__ALL__";
-      document.getElementById("carFilter").value = "__ALL__";
-      document.getElementById("reportType").value = "detailed";
-      document.getElementById("dateFrom").value = "";
-      document.getElementById("dateTo").value = "";
-      applyFilters();
-    }
+        function selectPortal(portalId) {
+            document.querySelectorAll('.portal-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.portal-nav-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-500', 'text-emeraldDark', 'shadow-md');
+                btn.classList.add('text-emerald-100');
+            });
 
-    function applyFilters() {
-      const sheetVal = document.getElementById("sheetFilter").value;
-      const carVal = document.getElementById("carFilter").value;
-      const reportType = document.getElementById("reportType").value;
-      const dateFrom = document.getElementById("dateFrom").value;
-      const dateTo = document.getElementById("dateTo").value;
+            document.getElementById(portalId).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + portalId);
+            activeNav.classList.add('bg-amber-500', 'text-emeraldDark', 'shadow-md');
+            activeNav.classList.remove('text-emerald-100');
+        }
 
-      currentFiltered = allRecords.filter(rec => {
-        if (sheetVal !== "__ALL__" && rec.sheet !== sheetVal) return false;
-        if (carVal !== "__ALL__" && rec.car !== carVal) return false;
-        if (dateFrom && rec.date && rec.date < dateFrom) return false;
-        if (dateTo && rec.date && rec.date > dateTo) return false;
-        return true;
-      });
+        function showAdminSection(secId) {
+            document.querySelectorAll('.admin-view-panel').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emeraldDark', 'text-white');
+                btn.classList.add('text-gray-700');
+            });
 
-      const totalConsumption = currentFiltered.reduce((sum, r) => sum + r.consumption, 0);
-      const uniqueCarsSet = new Set(currentFiltered.map(r => r.car));
-      const summaryMap = new Map();
-      currentFiltered.forEach(r => {
-        if (!summaryMap.has(r.car)) summaryMap.set(r.car, { car: r.car, count: 0, total: 0 });
-        const entry = summaryMap.get(r.car);
-        entry.count += 1; entry.total += r.consumption;
-      });
-      currentSummary = Array.from(summaryMap.values()).sort((a, b) => b.total - a.total);
+            document.getElementById(secId).classList.remove('hidden');
+            const activeBtn = document.getElementById('abtn-' + secId);
+            activeBtn.classList.add('bg-emeraldDark', 'text-white');
+            activeBtn.classList.remove('text-gray-700');
+        }
 
-      document.getElementById("kpiTotal").textContent = formatNum(totalConsumption);
-      document.getElementById("kpiCars").textContent = uniqueCarsSet.size;
+        function renderStudents() {
+            const tbody = document.getElementById('studentTableBody');
+            tbody.innerHTML = state.students.map((s, idx) => `
+                <tr>
+                    <td class="p-3 font-bold text-gray-900">${s.name}</td>
+                    <td class="p-3">${s.city}</td>
+                    <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${s.pkg.split('-')[0]}</span></td>
+                    <td class="p-3 font-mono" dir="ltr">${s.wa}</td>
+                    <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[11px]">${s.status}</span></td>
+                    <td class="p-3 text-center space-x-1 space-x-reverse">
+                        <button onclick="toggleStudentStatus(${idx})" class="text-amber-600 hover:underline font-bold">${s.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                        <button onclick="sendWelcomeWhatsapp('${s.name}', '${s.wa}')" class="text-green-600 hover:underline font-bold ml-2"><i class="fa-brands fa-whatsapp"></i> ترحيب</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-      if (reportType === "detailed") {
-        document.getElementById("kpiCountLabel").textContent = "عدد السجلات";
-        document.getElementById("kpiCount").textContent = currentFiltered.length;
-        document.getElementById("kpiAvg").textContent = formatNum(currentFiltered.length ? totalConsumption / currentFiltered.length : 0);
-        renderDetailedTable(totalConsumption);
-      } else {
-        document.getElementById("kpiCountLabel").textContent = "عدد السيارات";
-        document.getElementById("kpiCount").textContent = currentSummary.length;
-        document.getElementById("kpiAvg").textContent = formatNum(currentSummary.length ? totalConsumption / currentSummary.length : 0);
-        renderSummaryTable(totalConsumption);
-      }
+        function renderTeachers() {
+            const tbody = document.getElementById('teachersTableBody');
+            tbody.innerHTML = state.teachers.map(t => `
+                <tr>
+                    <td class="p-3 font-bold">${t.code}</td>
+                    <td class="p-3 font-bold text-gray-900">${t.name}</td>
+                    <td class="p-3 font-bold text-emeraldDark">${t.rate} جنيه/ساعة</td>
+                    <td class="p-3">${t.email}<br><span dir="ltr">${t.wa}</span></td>
+                    <td class="p-3 font-mono text-emeraldDark font-bold">${t.wallet}</td>
+                    <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[11px]">${t.status}</span></td>
+                    <td class="p-3 text-center">
+                        <button onclick="alert('تم تحديث حالة المعلم مؤقتاً')" class="bg-gray-200 text-gray-800 px-2.5 py-1 rounded-lg">إيقاف</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-      document.getElementById("printDate").textContent = "تاريخ الطباعة: " + new Date().toLocaleDateString("ar-EG");
-      document.getElementById("printReportTitle").textContent = reportType === "detailed" ? "تقرير تفصيلي باستهلاك السيارات" : "تقرير تجميعي بإجمالي استهلاك كل سيارة";
-      document.getElementById("printReportMeta").textContent = `الشيت: ${sheetVal === "__ALL__" ? "الكل" : sheetVal} | السيارة: ${carVal === "__ALL__" ? "الكل" : carVal}`;
-    }
+        function renderSubjects() {
+            document.getElementById('subjectsGrid').innerHTML = state.subjects.map(subj => `
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 text-center shadow-sm">
+                    <i class="fa-solid fa-kaaba text-2xl text-amber-500 mb-2"></i>
+                    <h5 class="font-bold text-xs text-gray-900">${subj}</h5>
+                </div>
+            `).join('');
+        }
 
-    function formatNum(n) { return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 }); }
+        function renderSchedules() {
+            document.getElementById('schedulesTableBody').innerHTML = state.schedules.map(sc => `
+                <tr>
+                    <td class="p-3 font-bold">${sc.student}</td>
+                    <td class="p-3">${sc.teacher}</td>
+                    <td class="p-3">${sc.day}</td>
+                    <td class="p-3 font-bold text-emeraldDark">${sc.from} مساءً</td>
+                    <td class="p-3"><a href="${sc.link}" target="_blank" class="text-blue-600 font-bold underline">رابط Zoom</a></td>
+                </tr>
+            `).join('');
+        }
 
-    function renderDetailedTable(totalConsumption) {
-      document.getElementById("tableHead").innerHTML = `<tr><th>م</th><th>الشيت</th><th>اليوم</th><th>التاريخ</th><th>رقم السيارة</th><th>الاستهلاك</th><th>ملاحظات</th></tr>`;
-      if (!currentFiltered.length) {
-        document.getElementById("tableBody").innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة.</td></tr>`;
-        document.getElementById("tableFoot").innerHTML = ""; return;
-      }
-      document.getElementById("tableBody").innerHTML = currentFiltered.map((r, i) => `<tr><td>${i+1}</td><td>${escapeHtml(r.sheet)}</td><td>${escapeHtml(r.day)}</td><td>${escapeHtml(r.date)}</td><td><strong>${escapeHtml(r.car)}</strong></td><td>${formatNum(r.consumption)}</td><td>${escapeHtml(r.notes)}</td></tr>`).join("");
-      document.getElementById("tableFoot").innerHTML = `<tr><td colspan="5">الإجمالي العام (${currentFiltered.length} سجل)</td><td>${formatNum(totalConsumption)}</td><td></td></tr>`;
-    }
+        function renderLibrary() {
+            document.getElementById('libraryCardsGrid').innerHTML = state.library.map(l => `
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 space-y-2">
+                    <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${l.type}</span>
+                    <h5 class="font-bold text-gray-900">${l.title}</h5>
+                    <button onclick="alert('جاري تنزيل الملف...')" class="w-full py-1.5 bg-gray-100 rounded font-bold">تنزيل الملف</button>
+                </div>
+            `).join('');
+        }
 
-    function renderSummaryTable(totalConsumption) {
-      document.getElementById("tableHead").innerHTML = `<tr><th>م</th><th>رقم السيارة</th><th>عدد السجلات</th><th>إجمالي الاستهلاك</th><th>متوسط الاستهلاك اليومي</th></tr>`;
-      if (!currentSummary.length) {
-        document.getElementById("tableBody").innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة.</td></tr>`;
-        document.getElementById("tableFoot").innerHTML = ""; return;
-      }
-      document.getElementById("tableBody").innerHTML = currentSummary.map((s, i) => `<tr><td>${i+1}</td><td><strong>${escapeHtml(s.car)}</strong></td><td>${s.count}</td><td>${formatNum(s.total)}</td><td>${formatNum(s.count ? s.total / s.count : 0)}</td></tr>`).join("");
-      document.getElementById("tableFoot").innerHTML = `<tr><td colspan="2">الإجمالي العام (${currentSummary.length} سيارة)</td><td>${currentFiltered.length}</td><td>${formatNum(totalConsumption)}</td><td>${formatNum(currentFiltered.length ? totalConsumption / currentFiltered.length : 0)}</td></tr>`;
-    }
+        function copyFormUrl() {
+            const urlInput = document.getElementById('gformUrlInput');
+            urlInput.select();
+            document.execCommand('copy');
+            alert('تم نسخ رابط Google Forms الخاص بأكاديمية الفائزين بنجاح!');
+        }
 
-    function escapeHtml(str) { return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+        function shareFormWhatsApp() {
+            const url = "https://forms.gle/adCcZT3ZRUacAzsR7";
+            const text = `مرحباً بك في أكاديمية الفائزين لتحفيظ القرآن الكريم والتعليم عن بعد 🌟\nيرجى تعبئة استمارة التسجيل عبر الرابط التالي:\n${url}`;
+            openWhatsAppModal('إرسال استمارة التسجيل للطلاب', text, '');
+        }
 
-    function exportToExcel() {
-      const reportType = document.getElementById("reportType").value;
-      const totalConsumption = currentFiltered.reduce((sum, r) => sum + r.consumption, 0);
-      if (reportType === "detailed") {
-        if (!currentFiltered.length) return alert("لا توجد بيانات.");
-        PureXLSX.writeWorkbook([{ name: "التقرير التفصيلي", rows: [["م", "الشيت", "اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ...currentFiltered.map((r, i) => [i+1, r.sheet, r.day, r.date, r.car, r.consumption, r.notes]), ["", "", "", "", "الإجمالي العام", Number(totalConsumption.toFixed(2)), ""]] }], "تقرير_تفصيلي.xlsx");
-      } else {
-        if (!currentSummary.length) return alert("لا توجد بيانات.");
-        PureXLSX.writeWorkbook([{ name: "التقرير التجميعي", rows: [["م", "رقم السيارة", "عدد السجلات", "إجمالي الاستهلاك", "متوسط الاستهلاك"], ...currentSummary.map((s, i) => [i+1, s.car, s.count, Number(s.total.toFixed(2)), Number((s.count ? s.total / s.count : 0).toFixed(2))]), ["", "الإجمالي العام", currentFiltered.length, Number(totalConsumption.toFixed(2)), ""]] }], "تقرير_تجميعي.xlsx");
-      }
-    }
+        function addStudentSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('stName').value;
+            const city = document.getElementById('stCity').value;
+            const pkg = document.getElementById('stPackage').value;
+            const wa = document.getElementById('stWhatsapp').value;
 
-    function downloadSampleXlsx() {
-      PureXLSX.writeWorkbook([
-        { name: "يناير 2026", rows: [["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ["الأحد", "2026-01-04", "أ ب ج 1234", 45, "مأمورية رئيسية"], ["الإثنين", "2026-01-05", "س ص ع 5678", 60, "صيانة معدات"]] },
-        { name: "فبراير 2026", rows: [["اليوم", "التاريخ", "رقم السيارة", "الاستهلاك", "ملاحظات"], ["الأربعاء", "2026-02-04", "أ ب ج 1234", 50, "تفقد المحطة"]] }
-      ], "نموذج_استهلاك_السيارات.xlsx");
-    }
-  </script>
+            const newStudent = { name, city, pkg, wa, status: 'نشط' };
+            state.students.unshift(newStudent);
+            renderStudents();
+
+            if (typeof window.saveStudentToCloud === 'function') {
+                window.saveStudentToCloud(newStudent);
+            }
+
+            sendWelcomeWhatsapp(name, wa);
+        }
+
+        function acceptFormSubmission(cardId, name, city, pkg, wa, email) {
+            const card = document.getElementById(cardId);
+            if (card) card.remove();
+
+            const newStudent = { name, city, pkg, wa, email, status: 'نشط' };
+            state.students.unshift(newStudent);
+            renderStudents();
+            closeModal('pendingSubmissionsModal');
+
+            if (typeof window.saveStudentToCloud === 'function') {
+                window.saveStudentToCloud(newStudent);
+            }
+
+            sendWelcomeWhatsapp(name, wa);
+        }
+
+        function sendWelcomeWhatsapp(name, wa) {
+            const text = `أهلاً بك أ/ ${name} في أكاديمية الفائزين لتحفيظ القرآن الكريم والتعليم عن بُعد ✨\nتم تسجيل حسابكم بنجاح في الأكاديمية.`;
+            openWhatsAppModal('رسالة ترحيب بالطالب', text, wa);
+        }
+
+        function addNewPackage() {
+            const name = document.getElementById('pkgName').value;
+            const price = document.getElementById('pkgPrice').value;
+
+            const select = document.getElementById('stPackage');
+            const opt = document.createElement('option');
+            opt.value = `${name} - ${price}`;
+            opt.textContent = `${name} (${price})`;
+            opt.selected = true;
+            select.appendChild(opt);
+
+            closeModal('newPackageModal');
+            alert("تمت إضافة الباقة الجديدة بنجاح!");
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function openWhatsAppModal(title, text, phone = '') {
+            document.getElementById('waModalTitle').innerText = title;
+            document.getElementById('waMessageText').innerText = text;
+            document.getElementById('waDirectLinkBox').classList.add('hidden');
+
+            const selectEl = document.getElementById('waStudentQuickSelect');
+            selectEl.innerHTML = '<option value="">-- اختر من أرقام الطلاب المسجلين (اختياري) --</option>' +
+                state.students.map(s => `<option value="${s.wa}">${s.name} (${s.wa})</option>`).join('');
+
+            document.getElementById('waRecipientNumber').value = phone || '';
+            selectEl.value = phone || '';
+            openModal('whatsappModal');
+        }
+
+        function pickQuickWhatsappNumber() {
+            const chosen = document.getElementById('waStudentQuickSelect').value;
+            if (chosen) {
+                document.getElementById('waRecipientNumber').value = chosen;
+            }
+        }
+
+        function normalizeWhatsappPhone(rawPhone) {
+            let digits = (rawPhone || '').replace(/[^0-9]/g, '');
+            if (!digits) return '';
+            // إذا بدأ الرقم بـ 01 (رقم مصري محلي من 11 رقماً) نضيف كود مصر 20
+            if (digits.startsWith('01') && digits.length === 11) {
+                digits = '20' + digits.slice(1);
+            } else if (digits.startsWith('00')) {
+                digits = digits.slice(2);
+            }
+            return digits;
+        }
+
+        function saveWhatsAppSettings(e) {
+            e.preventDefault();
+            const rawSender = document.getElementById('waSenderNumber').value;
+            const sender = normalizeWhatsappPhone(rawSender) || rawSender;
+            const apiKey = document.getElementById('waToken').value.trim();
+            const modeMsg = apiKey
+                ? 'تم حفظ الرقم ومفتاح الربط (جاهز لربط API خارجي).'
+                : 'تم حفظ رقم الأكاديمية؛ الإرسال يتم عبر فتح رابط واتساب (wa.me) حتى يتم ربط مزود API.';
+            showWaFeedback(`تم حفظ رقم الواتساب الخاص بالأكاديمية (${sender}) بنجاح. ${modeMsg}`);
+        }
+
+        function showWaFeedback(message) {
+            const box = document.getElementById('waStatusFeedback');
+            if (!box) return;
+            box.textContent = message;
+            box.classList.remove('hidden');
+        }
+
+        function appendWaLog(entryText) {
+            const list = document.getElementById('waSentLogList');
+            if (!list) return;
+            if (list.children.length === 1 && list.children[0].textContent.includes('لا توجد رسائل')) {
+                list.innerHTML = '';
+            }
+            const li = document.createElement('li');
+            const timeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            li.textContent = `[${timeStr}] ${entryText}`;
+            list.prepend(li);
+        }
+
+        function executeWASend() {
+            try {
+                const rawPhone = document.getElementById('waRecipientNumber').value.trim();
+                const cleanPhone = normalizeWhatsappPhone(rawPhone);
+                const msgText = document.getElementById('waMessageText').innerText;
+                const msg = encodeURIComponent(msgText);
+                const targetUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+
+                const directBox = document.getElementById('waDirectLinkBox');
+                const directAnchor = document.getElementById('waDirectAnchor');
+                directAnchor.href = targetUrl;
+                directAnchor.textContent = targetUrl;
+                directBox.classList.remove('hidden');
+
+                const popup = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                const destLabel = cleanPhone ? `+${cleanPhone}` : 'اختيار جهة اتصال يدوياً';
+
+                if (popup) {
+                    appendWaLog(`تم تجهيز وفتح رابط واتساب إلى (${destLabel})`);
+                    showWaFeedback(`تم فتح رابط واتساب إلى (${destLabel}). إذا لم يُرسل تلقائياً في واتساب ويب، اضغط زر الإرسال داخل واتساب.`);
+                } else {
+                    appendWaLog(`تم حظر النافذة المنبثقة؛ الرابط المباشر متاح لـ (${destLabel})`);
+                    showWaFeedback('تم حظر النافذة المنبثقة في المعاينة. اضغط على الرابط المباشر الظاهر أعلاه لفتح واتساب.');
+                }
+            } catch (err) {
+                showWaFeedback('تعذر تجهيز رابط الواتساب، يرجى التحقق من الرقم المدخل.');
+            }
+        }
+    </script>
 </body>
 </html>
