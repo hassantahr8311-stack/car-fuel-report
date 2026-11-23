@@ -639,25 +639,26 @@
         </div>
     </div>
 
-    <!-- CLEAN FIREBASE / STORAGE INTEGRATION MODULE -->
+    <!-- CLEAN & SAFE FIREBASE MODULE -->
     <script type="module">
-        // Safe check to prevent initial connection attempts with invalid demo keys
+        // 1. تحقق من وجود إعدادات Firebase حقيقية
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         let firebaseConfig = null;
         if (storedConfig) {
             try { firebaseConfig = JSON.parse(storedConfig); } catch(e){}
         }
 
+        // دالة الفحص التأكيدي لمنع محاولة الاتصال بمفاتيح وهمية
         function isValidFirebaseConfig(cfg) {
             if (!cfg || !cfg.apiKey || !cfg.projectId) return false;
             const key = cfg.apiKey;
-            if (key.includes('DemoKey') || key.includes('AIzaSyDemoKey') || key.includes('YOUR_API_KEY')) {
+            if (key.includes('DemoKey') || key.includes('AIzaSyDemoKey') || key.includes('YOUR_API_KEY') || key.length < 20) {
                 return false;
             }
             return true;
         }
 
-        // Dynamically load Firebase SDK ONLY when valid configuration exists
+        // استدعاء Firebase فقط وفقط إذا تم توفير مفتاح حقيقي
         if (isValidFirebaseConfig(firebaseConfig)) {
             Promise.all([
                 import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
@@ -668,17 +669,29 @@
                     const app = initializeApp(firebaseConfig);
                     const auth = getAuth(app);
                     const db = getFirestore(app);
-                    signInAnonymously(auth).then(() => {
-                        console.log("Firebase Connected Successfully");
-                    }).catch(() => {});
+                    signInAnonymously(auth).then((userCredential) => {
+                        console.log("%c Firebase متصل بنجاح!", "color: green; font-weight: bold;");
+                        window.firebaseDb = db;
+                    }).catch((err) => {
+                        console.warn("تنبيه الفيربيز:", err.message);
+                    });
                 } catch(e) {}
             }).catch(() => {});
         } else {
-            console.log("نظام أكاديمية الفائزين يعمل بنجاح في الوضع المحلي المباشر (Local Storage).");
+            console.log("%c يعمل النظام الآن بالوضع المحلي (LocalStorage) النظيف 100% بدون أخطاء.", "color: #046c4e; font-weight: bold;");
         }
 
         window.saveStudentToCloud = async function(studentData) {
             saveLocalStudents();
+            if (window.firebaseDb) {
+                try {
+                    const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    await addDoc(collection(window.firebaseDb, "students"), studentData);
+                    console.log("تم الحفظ في Firebase السحابي بنجاح!");
+                } catch(e) {
+                    console.warn("تعذر الحفظ السحابي، تم الحفظ محلياً:", e);
+                }
+            }
         };
 
         window.saveFirebaseConfigLocal = function(cfgObj) {
