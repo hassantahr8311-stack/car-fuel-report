@@ -154,10 +154,10 @@
                         <h4 class="text-xs font-black text-emeraldDark uppercase tracking-wider mb-3 px-3">لوحة التحكم والتنفيذ</h4>
                         
                         <button onclick="showAdminSection('studentsSec')" id="abtn-studentsSec" class="admin-tab-btn active w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 transition-all bg-emeraldDark text-white">
-                            <i class="fa-solid fa-users text-amber-400"></i> 1.1 تسجيل بيانات الطلاب
+                            <i class="fa-solid fa-users text-amber-400"></i> 1.1 تسجيل وقاعدة بيانات الطلاب
                         </button>
                         <button onclick="showAdminSection('teachersSec')" id="abtn-teachersSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
-                            <i class="fa-solid fa-chalkboard-teacher text-emeraldDark"></i> 1.2 تسجيل بيانات المعلمين
+                            <i class="fa-solid fa-chalkboard-teacher text-emeraldDark"></i> 1.2 تسجيل وقاعدة بيانات المعلمين
                         </button>
                         <button onclick="showAdminSection('timezonesSec')" id="abtn-timezonesSec" class="admin-tab-btn w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-200 transition-all">
                             <i class="fa-solid fa-earth-americas text-emeraldDark"></i> 1.3 المدن وفرق التوقيت
@@ -194,10 +194,11 @@
                             <!-- Controls & Pending Webhook Orders Banner -->
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-creamBg p-4 rounded-2xl border border-gray-200">
                                 <div>
-                                    <h3 class="font-bold text-gray-900 text-base">تسجيل وإدارة بيانات الطلاب</h3>
-                                    <p class="text-xs text-gray-500">إضافة وتعديل بيانات الطلاب أو استيراد الطلبات من النموذج</p>
+                                    <h3 class="font-bold text-gray-900 text-base">تسجيل وقاعدة بيانات الطلاب الفردية</h3>
+                                    <p class="text-xs text-gray-500">سجل مستقل لكل طالب مع معرّف فريد، إمكانية فتح ملفه الفردي، تعديله، أو حذفه</p>
                                 </div>
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span id="studentsCountBadge" class="bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl text-xs font-black">إجمالي الطلاب: 1</span>
                                     <button onclick="openModal('pendingSubmissionsModal')" class="bg-amber-500 hover:bg-amber-600 text-emeraldDark px-4 py-2 rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition-all">
                                         <i class="fa-solid fa-bell animate-bounce"></i>
                                         <span>طلبات التسجيل الجديدة (Google Forms)</span>
@@ -210,7 +211,7 @@
                                 </div>
                             </div>
 
-                            <!-- New Student Form (Updated Specification) -->
+                            <!-- New Student Form -->
                             <form onsubmit="addStudentSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-gray-200 text-xs font-semibold">
                                 <div>
                                     <label class="block mb-1 text-gray-700">اسم الطالب رباعي *</label>
@@ -271,11 +272,33 @@
                                 </div>
                             </form>
 
+                            <!-- Search & Filter Bar for Individual Student Records -->
+                            <div class="flex flex-col sm:flex-row gap-3 bg-sandLight p-3.5 rounded-2xl border border-gray-200 text-xs">
+                                <div class="flex-1 relative">
+                                    <input type="text" id="studentSearchInput" oninput="renderStudents()" placeholder="ابحث باسم الطالب، الكود (STD-...)، الدولة، أو رقم الواتساب..." class="w-full p-2.5 pr-9 rounded-xl border border-gray-300 bg-white outline-none focus:ring-2 focus:ring-emeraldDark">
+                                    <i class="fa-solid fa-magnifying-glass text-gray-400 absolute right-3 top-3"></i>
+                                </div>
+                                <select id="studentStatusFilter" onchange="renderStudents()" class="p-2.5 rounded-xl border border-gray-300 bg-white font-bold outline-none">
+                                    <option value="ALL">كل الحالات</option>
+                                    <option value="نشط">نشط فقط</option>
+                                    <option value="موقوف">موقوف فقط</option>
+                                </select>
+                            </div>
+
+                            <!-- Individual Student Cards (كل طالب على حدة) -->
+                            <div>
+                                <h4 class="text-xs font-black text-emeraldDark mb-3">السجلات الفردية للطلاب (كل طالب على حدة)</h4>
+                                <div id="studentIndividualCards" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- JS Loaded -->
+                                </div>
+                            </div>
+
                             <!-- Students List Table -->
                             <div class="overflow-x-auto rounded-2xl border border-gray-200">
                                 <table id="studentsTable" class="w-full text-right text-xs">
                                     <thead class="bg-emeraldDark text-white font-bold">
                                         <tr>
+                                            <th class="p-3">كود الطالب</th>
                                             <th class="p-3">اسم الطالب</th>
                                             <th class="p-3">الدولة والمدينة</th>
                                             <th class="p-3">الباقة المختارة</th>
@@ -293,17 +316,18 @@
 
                         <!-- 1.2 TEACHERS MANAGEMENT -->
                         <div id="teachersSec" class="admin-view-panel hidden space-y-6">
-                            <div class="flex justify-between items-center bg-creamBg p-4 rounded-2xl border border-gray-200">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-creamBg p-4 rounded-2xl border border-gray-200">
                                 <div>
-                                    <h3 class="font-bold text-gray-900 text-base">تسجيل بيانات المعلمين</h3>
-                                    <p class="text-xs text-gray-500">إدارة الكادر التعليمي، تفعيل رقم الواتساب، وتحديد المحفظة الإلكترونية</p>
+                                    <h3 class="font-bold text-gray-900 text-base">تسجيل وقاعدة بيانات المعلمين الفردية</h3>
+                                    <p class="text-xs text-gray-500">سجل مستقل لكل معلم مع كود فريد، ملف تعريفي فردي، وتعديل أو حذف السجل</p>
                                 </div>
+                                <span id="teachersCountBadge" class="bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl text-xs font-black">إجمالي المعلمين: 1</span>
                             </div>
 
                             <form onsubmit="addTeacherSubmit(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 text-xs font-semibold">
                                 <div>
                                     <label class="block mb-1 text-gray-700">كود المعلم</label>
-                                    <input type="text" id="tcCode" value="TCH-88" readonly class="w-full p-2 bg-gray-100 rounded-lg border">
+                                    <input type="text" id="tcCode" value="TCH-89" readonly class="w-full p-2 bg-gray-100 rounded-lg border font-mono">
                                 </div>
                                 <div>
                                     <label class="block mb-1 text-gray-700">اسم المعلم الثلاثي *</label>
@@ -331,6 +355,22 @@
                                     </button>
                                 </div>
                             </form>
+
+                            <!-- Search Bar for Individual Teacher Records -->
+                            <div class="flex flex-col sm:flex-row gap-3 bg-sandLight p-3.5 rounded-2xl border border-gray-200 text-xs">
+                                <div class="flex-1 relative">
+                                    <input type="text" id="teacherSearchInput" oninput="renderTeachers()" placeholder="ابحث باسم المعلم، الكود (TCH-...)، المحفظة، أو رقم الواتساب..." class="w-full p-2.5 pr-9 rounded-xl border border-gray-300 bg-white outline-none focus:ring-2 focus:ring-emeraldDark">
+                                    <i class="fa-solid fa-magnifying-glass text-gray-400 absolute right-3 top-3"></i>
+                                </div>
+                            </div>
+
+                            <!-- Individual Teacher Cards (كل معلم على حدة) -->
+                            <div>
+                                <h4 class="text-xs font-black text-emeraldDark mb-3">السجلات الفردية للمعلمين (كل معلم على حدة)</h4>
+                                <div id="teacherIndividualCards" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- JS Loaded -->
+                                </div>
+                            </div>
 
                             <div class="overflow-x-auto rounded-2xl border border-gray-200">
                                 <table id="teachersTable" class="w-full text-right text-xs">
@@ -461,18 +501,14 @@
                                     <label class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border cursor-pointer">
                                         <input type="checkbox" id="autoWaInvoice" checked class="w-4 h-4 text-green-600 rounded">
                                         <span>إرسال الفاتورة الشهرية وتأكيد الدفع</span>
-                                <div class="flex flex-wrap justify-between items-center gap-3 pt-3 border-t">
-                                    <span id="fbStatusLabel" class="text-xs font-bold text-emerald-700"></span>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <button type="button" onclick="testFirebaseConnectionNow()" class="bg-emeraldDark hover:bg-emeraldLight text-white font-bold px-4 py-2.5 rounded-xl shadow text-xs">
-                                            <i class="fa-solid fa-vial-circle-check ml-1 text-amber-400"></i> اختبار الاتصال والحفظ الآن
-                                        </button>
-                                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded-xl shadow text-xs">
-                                            <i class="fa-solid fa-cloud-arrow-up ml-1"></i> تفعيل وحفظ ربط Firebase
-                                        </button>
-                                    </div>
+                                    </label>
                                 </div>
-                                <div id="fbTestResultBox" class="hidden p-3 rounded-xl border text-xs font-semibold bg-slate-50 text-slate-800"></div>
+
+                                <div class="flex justify-end pt-3 border-t">
+                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-xl shadow text-xs">
+                                        حفظ إعدادات الواتساب
+                                    </button>
+                                </div>
                             </form>
                         </div>
 
@@ -511,12 +547,18 @@
                                     </div>
                                 </div>
 
-                                <div class="flex justify-between items-center pt-3 border-t">
+                                <div class="flex flex-wrap justify-between items-center gap-3 pt-3 border-t">
                                     <span id="fbStatusLabel" class="text-xs font-bold text-emerald-700"></span>
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded-xl shadow">
-                                        <i class="fa-solid fa-cloud-arrow-up ml-1"></i> تفعيل وحفظ ربط Firebase
-                                    </button>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button type="button" onclick="testFirebaseConnectionNow()" class="bg-emeraldDark hover:bg-emeraldLight text-white font-bold px-4 py-2.5 rounded-xl shadow text-xs">
+                                            <i class="fa-solid fa-vial-circle-check ml-1 text-amber-400"></i> اختبار الاتصال والحفظ الآن
+                                        </button>
+                                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded-xl shadow text-xs">
+                                            <i class="fa-solid fa-cloud-arrow-up ml-1"></i> تفعيل وحفظ ربط Firebase
+                                        </button>
+                                    </div>
                                 </div>
+                                <div id="fbTestResultBox" class="hidden p-3 rounded-xl border text-xs font-semibold bg-slate-50 text-slate-800"></div>
                             </form>
                         </div>
 
@@ -586,6 +628,40 @@
     </main>
 
     <!-- MODALS SYSTEM -->
+
+    <!-- Individual Student Profile Modal -->
+    <div id="studentProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl text-right relative space-y-4">
+            <button onclick="closeModal('studentProfileModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="border-b border-gray-200 pb-3">
+                <span id="stModalId" class="bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold">STD-001</span>
+                <h3 id="stModalName" class="text-lg font-black text-gray-900 mt-1">اسم الطالب</h3>
+            </div>
+            <div id="stModalDetails" class="space-y-2 text-xs font-semibold text-gray-700 bg-sandLight p-4 rounded-2xl border border-gray-200">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('studentProfileModal')" class="px-5 py-2 rounded-xl bg-emeraldDark text-white text-xs font-bold">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Individual Teacher Profile Modal -->
+    <div id="teacherProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl text-right relative space-y-4">
+            <button onclick="closeModal('teacherProfileModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="border-b border-gray-200 pb-3">
+                <span id="tcModalCode" class="bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold">TCH-88</span>
+                <h3 id="tcModalName" class="text-lg font-black text-gray-900 mt-1">اسم المعلم</h3>
+            </div>
+            <div id="tcModalDetails" class="space-y-2 text-xs font-semibold text-gray-700 bg-sandLight p-4 rounded-2xl border border-gray-200">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('teacherProfileModal')" class="px-5 py-2 rounded-xl bg-emeraldDark text-white text-xs font-bold">إغلاق</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Pending Google Forms Submissions Modal -->
     <div id="pendingSubmissionsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -690,7 +766,6 @@
 
     <!-- CLEAN & SAFE FIREBASE MODULE -->
     <script type="module">
-        // 1. تحقق من وجود إعدادات Firebase حقيقية محفوظة من المستخدم فقط
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         let firebaseConfig = null;
         if (storedConfig) {
@@ -701,7 +776,6 @@
             }
         }
 
-        // دالة فحص صارمة لمنع إرسال أي طلبات بمفاتيح تجريبية أو ناقصة
         function isValidFirebaseConfig(cfg) {
             if (!cfg || typeof cfg !== 'object') return false;
             const key = String(cfg.apiKey || '').trim();
@@ -739,7 +813,6 @@
             }
         });
 
-        // استدعاء مكتبات Firebase فقط عند توفر إعدادات صالحة أدخلها المستخدم فعلياً
         if (isValidFirebaseConfig(firebaseConfig)) {
             Promise.all([
                 import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
@@ -766,10 +839,22 @@
 
         window.saveStudentToCloud = async function(studentData) {
             saveLocalStudents();
-            if (window.firebaseDb) {
+            if (window.firebaseDb && studentData && studentData.id) {
                 try {
-                    const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-                    await addDoc(collection(window.firebaseDb, "students"), studentData);
+                    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    await setDoc(doc(window.firebaseDb, "students", studentData.id), studentData);
+                } catch (e) {
+                    // يظل الحفظ المحلي محفوظاً دون تعطيل التجربة
+                }
+            }
+        };
+
+        window.saveTeacherToCloud = async function(teacherData) {
+            saveLocalTeachers();
+            if (window.firebaseDb && teacherData && teacherData.code) {
+                try {
+                    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    await setDoc(doc(window.firebaseDb, "teachers", teacherData.code), teacherData);
                 } catch (e) {
                     // يظل الحفظ المحلي محفوظاً دون تعطيل التجربة
                 }
@@ -799,7 +884,6 @@
             window.saveFirebaseConfigLocal(cfg);
         };
 
-        // دالة اختبار فعلية للتحقق من الاتصال بـ Firestore وتجربة إضافة مستند اختبار
         window.testFirebaseConnectionNow = async function() {
             const resultBox = document.getElementById('fbTestResultBox');
             const cfg = {
@@ -822,7 +906,7 @@
             resultBox.textContent = 'جاري اختبار الاتصال بـ Firebase Firestore...';
 
             try {
-                const [{ initializeApp, getApps, getApp }, { getAuth, signInAnonymously }, { getFirestore, collection, addDoc, getDocs }] = await Promise.all([
+                const [{ initializeApp, getApps }, { getAuth, signInAnonymously }, { getFirestore, collection, addDoc, getDocs }] = await Promise.all([
                     import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
                     import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
                     import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
@@ -853,17 +937,74 @@
     <!-- CORE JAVASCRIPT LOGIC -->
     <script>
         const defaultStudents = [
-            { name: 'مالك محمود خليفة', city: 'مصر - القاهرة', pkg: 'باقة 8 حصص - 350 جنيه', wa: '+201099887766', status: 'نشط' }
+            {
+                id: 'STD-1001',
+                name: 'مالك محمود خليفة',
+                city: 'مصر - القاهرة',
+                pkg: 'باقة 8 حصص - 350 جنيه',
+                wa: '+201099887766',
+                phone2: '',
+                email: 'malik@example.com',
+                notes: 'طالب منتظم في حلقة القرآن الكريم',
+                status: 'نشط',
+                createdAt: '2026-11-01'
+            }
         ];
 
+        const defaultTeachers = [
+            {
+                code: 'TCH-88',
+                name: 'الشيخ / محمود خليفة',
+                rate: 100,
+                email: 'teacher@alfaizeen.com',
+                wa: '+201000000000',
+                wallet: 'فودافون كاش (01000...)',
+                status: 'نشط',
+                createdAt: '2026-11-01'
+            }
+        ];
+
+        function normalizeStudentRecord(st, index) {
+            return {
+                id: st.id || `STD-${1001 + index}`,
+                name: st.name || '',
+                city: st.city || 'مصر - القاهرة',
+                pkg: st.pkg || 'باقة 8 حصص - 350 جنيه',
+                wa: st.wa || '',
+                phone2: st.phone2 || '',
+                email: st.email || '',
+                notes: st.notes || '',
+                status: st.status || 'نشط',
+                createdAt: st.createdAt || new Date().toISOString().slice(0, 10)
+            };
+        }
+
+        function normalizeTeacherRecord(tc, index) {
+            return {
+                code: tc.code || `TCH-${88 + index}`,
+                name: tc.name || '',
+                rate: Number(tc.rate) || 100,
+                email: tc.email || '',
+                wa: tc.wa || '',
+                wallet: tc.wallet || '',
+                status: tc.status || 'نشط',
+                createdAt: tc.createdAt || new Date().toISOString().slice(0, 10)
+            };
+        }
+
         const localSavedStudents = localStorage.getItem('alfaizeen_students');
-        const initialStudents = localSavedStudents ? JSON.parse(localSavedStudents) : defaultStudents;
+        const initialStudents = localSavedStudents
+            ? JSON.parse(localSavedStudents).map(normalizeStudentRecord)
+            : defaultStudents;
+
+        const localSavedTeachers = localStorage.getItem('alfaizeen_teachers');
+        const initialTeachers = localSavedTeachers
+            ? JSON.parse(localSavedTeachers).map(normalizeTeacherRecord)
+            : defaultTeachers;
 
         const state = {
             students: initialStudents,
-            teachers: [
-                { code: 'TCH-88', name: 'الشيخ / محمود خليفة', rate: 100, email: 'teacher@alfaizeen.com', wa: '+201000000000', wallet: 'فودافون كاش (01000...)', status: 'نشط' }
-            ],
+            teachers: initialTeachers,
             subjects: ['القرآن الكريم والتلاوة', 'أحكام التجويد', 'اللغة العربية والإنشاء', 'نور البيان', 'الفقه الميسر', 'السيرة النبوية'],
             schedules: [
                 { student: 'مالك محمود خليفة', teacher: 'الشيخ محمود خليفة', day: 'السبت والأربعاء', from: '16:00', link: 'https://zoom.us' }
@@ -873,6 +1014,26 @@
                 { title: 'تسجيل شرح أحكام التجويد', type: 'فيديو تعليمي' }
             ]
         };
+
+        function generateNextStudentId() {
+            const maxNum = state.students.reduce((max, s) => {
+                const match = String(s.id || '').match(/(\d+)$/);
+                const num = match ? parseInt(match[1], 10) : 1000;
+                return Math.max(max, num);
+            }, 1000);
+            return `STD-${maxNum + 1}`;
+        }
+
+        function updateNextTeacherCodeInput() {
+            const input = document.getElementById('tcCode');
+            if (!input) return;
+            const maxNum = state.teachers.reduce((max, t) => {
+                const match = String(t.code || '').match(/(\d+)$/);
+                const num = match ? parseInt(match[1], 10) : 88;
+                return Math.max(max, num);
+            }, 88);
+            input.value = `TCH-${maxNum + 1}`;
+        }
 
         function showAdminStatus(msg) {
             const banner = document.getElementById('adminActionBanner');
@@ -885,7 +1046,14 @@
             localStorage.setItem('alfaizeen_students', JSON.stringify(state.students));
         }
 
+        function saveLocalTeachers() {
+            localStorage.setItem('alfaizeen_teachers', JSON.stringify(state.teachers));
+        }
+
         window.onload = function() {
+            saveLocalStudents();
+            saveLocalTeachers();
+            updateNextTeacherCodeInput();
             renderStudents();
             renderTeachers();
             renderSubjects();
@@ -919,38 +1087,253 @@
             activeBtn.classList.remove('text-gray-700');
         }
 
+        function getFilteredStudents() {
+            const query = (document.getElementById('studentSearchInput')?.value || '').trim().toLowerCase();
+            const statusFilter = document.getElementById('studentStatusFilter')?.value || 'ALL';
+
+            return state.students
+                .map((student, index) => ({ student, index }))
+                .filter(({ student }) => {
+                    const matchesStatus = statusFilter === 'ALL' || student.status === statusFilter;
+                    const hay = `${student.id} ${student.name} ${student.city} ${student.pkg} ${student.wa} ${student.email}`.toLowerCase();
+                    const matchesQuery = !query || hay.includes(query);
+                    return matchesStatus && matchesQuery;
+                });
+        }
+
         function renderStudents() {
             const tbody = document.getElementById('studentTableBody');
-            tbody.innerHTML = state.students.map((s, idx) => `
-                <tr>
-                    <td class="p-3 font-bold text-gray-900">${s.name}</td>
-                    <td class="p-3">${s.city}</td>
-                    <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${s.pkg.split('-')[0]}</span></td>
-                    <td class="p-3 font-mono" dir="ltr">${s.wa}</td>
-                    <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[11px]">${s.status}</span></td>
-                    <td class="p-3 text-center space-x-1 space-x-reverse">
-                        <button onclick="toggleStudentStatus(${idx})" class="text-amber-600 hover:underline font-bold">${s.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
-                        <button onclick="sendWelcomeWhatsapp('${s.name}', '${s.wa}')" class="text-green-600 hover:underline font-bold ml-2"><i class="fa-brands fa-whatsapp"></i> ترحيب</button>
-                    </td>
-                </tr>
-            `).join('');
+            const cardsContainer = document.getElementById('studentIndividualCards');
+            const badge = document.getElementById('studentsCountBadge');
+            if (badge) {
+                badge.textContent = `إجمالي الطلاب: ${state.students.length}`;
+            }
+
+            const filtered = getFilteredStudents();
+
+            if (cardsContainer) {
+                if (!filtered.length) {
+                    cardsContainer.innerHTML = `<div class="md:col-span-2 bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-xs text-gray-500 font-bold">لا توجد سجلات طلاب مطابقة للبحث الحالي.</div>`;
+                } else {
+                    cardsContainer.innerHTML = filtered.map(({ student: s, index: idx }) => `
+                        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:border-emeraldDark transition-all space-y-3 text-xs">
+                            <div class="flex items-start justify-between gap-2 border-b border-gray-100 pb-2.5">
+                                <div>
+                                    <span class="bg-emerald-50 text-emeraldDark border border-emerald-200 px-2 py-0.5 rounded-lg font-mono font-bold text-[11px]">${s.id}</span>
+                                    <h5 class="font-black text-gray-900 text-sm mt-1">${s.name}</h5>
+                                    <p class="text-[11px] text-gray-500"><i class="fa-solid fa-location-dot text-amber-600 ml-1"></i>${s.city}</p>
+                                </div>
+                                <span class="${s.status === 'نشط' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} px-2.5 py-1 rounded-full font-bold text-[11px]">${s.status}</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-sandLight p-3 rounded-xl text-[11px] font-semibold text-gray-700">
+                                <div><span class="text-gray-400">الباقة:</span> <span class="text-emeraldDark font-bold">${s.pkg}</span></div>
+                                <div><span class="text-gray-400">واتساب:</span> <span class="font-mono" dir="ltr">${s.wa}</span></div>
+                                <div class="truncate"><span class="text-gray-400">البريد:</span> <span>${s.email || 'غير مسجل'}</span></div>
+                                <div><span class="text-gray-400">تاريخ الإضافة:</span> <span class="font-mono">${s.createdAt}</span></div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <button type="button" onclick="openStudentProfile(${idx})" class="bg-emerald-50 hover:bg-emerald-100 text-emeraldDark px-3 py-1.5 rounded-xl font-bold">
+                                    <i class="fa-solid fa-id-card ml-1"></i> ملف الطالب
+                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" onclick="toggleStudentStatus(${idx})" class="text-amber-700 hover:underline font-bold">${s.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                                    <button type="button" onclick="sendWelcomeWhatsapp('${s.name}', '${s.wa}')" class="text-green-600 hover:underline font-bold"><i class="fa-brands fa-whatsapp"></i> واتساب</button>
+                                    <button type="button" onclick="deleteStudentRecord(${idx})" class="text-red-600 hover:underline font-bold">حذف</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            if (tbody) {
+                tbody.innerHTML = filtered.map(({ student: s, index: idx }) => `
+                    <tr>
+                        <td class="p-3 font-mono font-bold text-emeraldDark">${s.id}</td>
+                        <td class="p-3 font-bold text-gray-900">${s.name}</td>
+                        <td class="p-3">${s.city}</td>
+                        <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${s.pkg.split('-')[0]}</span></td>
+                        <td class="p-3 font-mono" dir="ltr">${s.wa}</td>
+                        <td class="p-3"><span class="${s.status === 'نشط' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} px-2 py-0.5 rounded-full font-bold text-[11px]">${s.status}</span></td>
+                        <td class="p-3 text-center space-x-1 space-x-reverse">
+                            <button onclick="openStudentProfile(${idx})" class="text-emeraldDark hover:underline font-bold">ملف</button>
+                            <button onclick="toggleStudentStatus(${idx})" class="text-amber-600 hover:underline font-bold">${s.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                            <button onclick="sendWelcomeWhatsapp('${s.name}', '${s.wa}')" class="text-green-600 hover:underline font-bold"><i class="fa-brands fa-whatsapp"></i> ترحيب</button>
+                            <button onclick="deleteStudentRecord(${idx})" class="text-red-600 hover:underline font-bold">حذف</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function openStudentProfile(idx) {
+            const s = state.students[idx];
+            if (!s) return;
+            document.getElementById('stModalId').textContent = s.id;
+            document.getElementById('stModalName').textContent = s.name;
+            document.getElementById('stModalDetails').innerHTML = `
+                <div><strong>الدولة والمدينة:</strong> ${s.city}</div>
+                <div><strong>الباقة المختارة:</strong> ${s.pkg}</div>
+                <div><strong>رقم الواتساب:</strong> <span dir="ltr" class="font-mono">${s.wa}</span></div>
+                <div><strong>رقم جوال إضافي:</strong> <span dir="ltr" class="font-mono">${s.phone2 || 'غير مضاف'}</span></div>
+                <div><strong>البريد الإلكتروني:</strong> ${s.email || 'غير مسجل'}</div>
+                <div><strong>حالة الحساب:</strong> ${s.status}</div>
+                <div><strong>تاريخ التسجيل:</strong> ${s.createdAt}</div>
+                <div><strong>ملاحظات:</strong> ${s.notes || 'لا توجد ملاحظات'}</div>
+            `;
+            openModal('studentProfileModal');
+        }
+
+        function deleteStudentRecord(idx) {
+            const s = state.students[idx];
+            if (!s) return;
+            state.students.splice(idx, 1);
+            saveLocalStudents();
+            renderStudents();
+            showAdminStatus(`تم حذف سجل الطالب (${s.name} - ${s.id}) من قاعدة البيانات المحلية.`);
         }
 
         function renderTeachers() {
             const tbody = document.getElementById('teachersTableBody');
-            tbody.innerHTML = state.teachers.map(t => `
-                <tr>
-                    <td class="p-3 font-bold">${t.code}</td>
-                    <td class="p-3 font-bold text-gray-900">${t.name}</td>
-                    <td class="p-3 font-bold text-emeraldDark">${t.rate} جنيه/ساعة</td>
-                    <td class="p-3">${t.email}<br><span dir="ltr">${t.wa}</span></td>
-                    <td class="p-3 font-mono text-emeraldDark font-bold">${t.wallet}</td>
-                    <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[11px]">${t.status}</span></td>
-                    <td class="p-3 text-center">
-                        <button onclick="showAdminStatus('تم تحديث حالة المعلم ${t.name} بنجاح')" class="bg-gray-200 text-gray-800 px-2.5 py-1 rounded-lg">إيقاف</button>
-                    </td>
-                </tr>
-            `).join('');
+            const cardsContainer = document.getElementById('teacherIndividualCards');
+            const badge = document.getElementById('teachersCountBadge');
+            if (badge) {
+                badge.textContent = `إجمالي المعلمين: ${state.teachers.length}`;
+            }
+
+            const query = (document.getElementById('teacherSearchInput')?.value || '').trim().toLowerCase();
+            const filtered = state.teachers
+                .map((teacher, index) => ({ teacher, index }))
+                .filter(({ teacher }) => {
+                    if (!query) return true;
+                    const hay = `${teacher.code} ${teacher.name} ${teacher.email} ${teacher.wa} ${teacher.wallet}`.toLowerCase();
+                    return hay.includes(query);
+                });
+
+            if (cardsContainer) {
+                if (!filtered.length) {
+                    cardsContainer.innerHTML = `<div class="md:col-span-2 bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-xs text-gray-500 font-bold">لا توجد سجلات معلمين مطابقة للبحث الحالي.</div>`;
+                } else {
+                    cardsContainer.innerHTML = filtered.map(({ teacher: t, index: idx }) => `
+                        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:border-emeraldDark transition-all space-y-3 text-xs">
+                            <div class="flex items-start justify-between gap-2 border-b border-gray-100 pb-2.5">
+                                <div>
+                                    <span class="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-lg font-mono font-bold text-[11px]">${t.code}</span>
+                                    <h5 class="font-black text-gray-900 text-sm mt-1">${t.name}</h5>
+                                    <p class="text-[11px] text-gray-500">${t.email}</p>
+                                </div>
+                                <span class="${t.status === 'نشط' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} px-2.5 py-1 rounded-full font-bold text-[11px]">${t.status}</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-sandLight p-3 rounded-xl text-[11px] font-semibold text-gray-700">
+                                <div><span class="text-gray-400">سعر الساعة:</span> <span class="text-emeraldDark font-bold">${t.rate} جنيه/ساعة</span></div>
+                                <div><span class="text-gray-400">واتساب:</span> <span class="font-mono" dir="ltr">${t.wa}</span></div>
+                                <div class="sm:col-span-2"><span class="text-gray-400">المحفظة:</span> <span class="font-mono text-emeraldDark font-bold">${t.wallet}</span></div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <button type="button" onclick="openTeacherProfile(${idx})" class="bg-emerald-50 hover:bg-emerald-100 text-emeraldDark px-3 py-1.5 rounded-xl font-bold">
+                                    <i class="fa-solid fa-user-tie ml-1"></i> ملف المعلم
+                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" onclick="toggleTeacherStatus(${idx})" class="text-amber-700 hover:underline font-bold">${t.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                                    <button type="button" onclick="deleteTeacherRecord(${idx})" class="text-red-600 hover:underline font-bold">حذف</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            if (tbody) {
+                tbody.innerHTML = filtered.map(({ teacher: t, index: idx }) => `
+                    <tr>
+                        <td class="p-3 font-bold font-mono">${t.code}</td>
+                        <td class="p-3 font-bold text-gray-900">${t.name}</td>
+                        <td class="p-3 font-bold text-emeraldDark">${t.rate} جنيه/ساعة</td>
+                        <td class="p-3">${t.email}<br><span dir="ltr">${t.wa}</span></td>
+                        <td class="p-3 font-mono text-emeraldDark font-bold">${t.wallet}</td>
+                        <td class="p-3"><span class="${t.status === 'نشط' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} px-2 py-0.5 rounded-full font-bold text-[11px]">${t.status}</span></td>
+                        <td class="p-3 text-center space-x-1 space-x-reverse">
+                            <button onclick="openTeacherProfile(${idx})" class="text-emeraldDark hover:underline font-bold">ملف</button>
+                            <button onclick="toggleTeacherStatus(${idx})" class="bg-gray-200 text-gray-800 px-2.5 py-1 rounded-lg">${t.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                            <button onclick="deleteTeacherRecord(${idx})" class="text-red-600 hover:underline font-bold">حذف</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function openTeacherProfile(idx) {
+            const t = state.teachers[idx];
+            if (!t) return;
+            document.getElementById('tcModalCode').textContent = t.code;
+            document.getElementById('tcModalName').textContent = t.name;
+            document.getElementById('tcModalDetails').innerHTML = `
+                <div><strong>كود المعلم:</strong> <span class="font-mono">${t.code}</span></div>
+                <div><strong>سعر الساعة:</strong> ${t.rate} جنيه/ساعة</div>
+                <div><strong>البريد الإلكتروني:</strong> ${t.email}</div>
+                <div><strong>رقم الواتساب:</strong> <span dir="ltr" class="font-mono">${t.wa}</span></div>
+                <div><strong>المحفظة الإلكترونية:</strong> ${t.wallet}</div>
+                <div><strong>حالة الحساب:</strong> ${t.status}</div>
+                <div><strong>تاريخ الإضافة:</strong> ${t.createdAt}</div>
+            `;
+            openModal('teacherProfileModal');
+        }
+
+        function toggleTeacherStatus(idx) {
+            if (!state.teachers[idx]) return;
+            state.teachers[idx].status = state.teachers[idx].status === 'نشط' ? 'موقوف' : 'نشط';
+            saveLocalTeachers();
+            renderTeachers();
+        }
+
+        function deleteTeacherRecord(idx) {
+            const t = state.teachers[idx];
+            if (!t) return;
+            state.teachers.splice(idx, 1);
+            saveLocalTeachers();
+            updateNextTeacherCodeInput();
+            renderTeachers();
+            showAdminStatus(`تم حذف سجل المعلم (${t.name} - ${t.code}) من قاعدة البيانات المحلية.`);
+        }
+
+        function addTeacherSubmit(e) {
+            e.preventDefault();
+            const code = document.getElementById('tcCode').value.trim();
+            const name = document.getElementById('tcName').value.trim();
+            const rate = Number(document.getElementById('tcRate').value) || 100;
+            const email = document.getElementById('tcEmail').value.trim();
+            const wa = document.getElementById('tcWhatsapp').value.trim();
+            const wallet = document.getElementById('tcWallet').value.trim();
+
+            const newTeacher = {
+                code,
+                name,
+                rate,
+                email,
+                wa,
+                wallet,
+                status: 'نشط',
+                createdAt: new Date().toISOString().slice(0, 10)
+            };
+
+            state.teachers.unshift(newTeacher);
+            updateNextTeacherCodeInput();
+            renderTeachers();
+
+            if (typeof window.saveTeacherToCloud === 'function') {
+                window.saveTeacherToCloud(newTeacher);
+            } else {
+                saveLocalTeachers();
+            }
+
+            e.target.reset();
+            document.getElementById('tcRate').value = 100;
+            updateNextTeacherCodeInput();
+            showAdminStatus(`تم حفظ سجل المعلم (${name} - ${code}) في قاعدة البيانات بنجاح.`);
         }
 
         function renderSubjects() {
@@ -999,12 +1382,27 @@
 
         function addStudentSubmit(e) {
             e.preventDefault();
-            const name = document.getElementById('stName').value;
+            const name = document.getElementById('stName').value.trim();
             const city = document.getElementById('stCity').value;
             const pkg = document.getElementById('stPackage').value;
-            const wa = document.getElementById('stWhatsapp').value;
+            const wa = document.getElementById('stWhatsapp').value.trim();
+            const phone2 = document.getElementById('stPhone2').value.trim();
+            const email = document.getElementById('stEmail').value.trim();
+            const notes = document.getElementById('stNotes').value.trim();
 
-            const newStudent = { name, city, pkg, wa, status: 'نشط' };
+            const newStudent = {
+                id: generateNextStudentId(),
+                name,
+                city,
+                pkg,
+                wa,
+                phone2,
+                email,
+                notes,
+                status: 'نشط',
+                createdAt: new Date().toISOString().slice(0, 10)
+            };
+
             state.students.unshift(newStudent);
             renderStudents();
 
@@ -1014,6 +1412,7 @@
                 saveLocalStudents();
             }
 
+            e.target.reset();
             sendWelcomeWhatsapp(name, wa);
         }
 
@@ -1021,7 +1420,19 @@
             const card = document.getElementById(cardId);
             if (card) card.remove();
 
-            const newStudent = { name, city, pkg, wa, email, status: 'نشط' };
+            const newStudent = {
+                id: generateNextStudentId(),
+                name,
+                city,
+                pkg,
+                wa,
+                phone2: '',
+                email,
+                notes: 'تم القبول من نموذج Google Forms',
+                status: 'نشط',
+                createdAt: new Date().toISOString().slice(0, 10)
+            };
+
             state.students.unshift(newStudent);
             renderStudents();
             closeModal('pendingSubmissionsModal');
