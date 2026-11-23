@@ -645,63 +645,73 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration setup - Uses global environment variables or local placeholders
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+        // Firebase Configuration setup - Saved local credentials or environment variables
+        const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
+        const firebaseConfig = storedConfig ? JSON.parse(storedConfig) : (typeof __firebase_config !== 'undefined' 
             ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "AIzaSyDemoKeyForAlfaizeenAcademy",
-                authDomain: "alfaizeen-app.firebaseapp.com",
-                projectId: "alfaizeen-app",
-                storageBucket: "alfaizeen-app.appspot.com",
-                messagingSenderId: "1234567890",
-                appId: "1:1234567890:web:demo123"
-            };
+            : null);
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alfaizeen-academy-app';
 
+        let db = null;
+        let auth = null;
         let currentUser = null;
 
-        // Authentication Handler
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
-        } else {
-            signInAnonymously(auth).catch((err) => console.log("Firebase Auth notice:", err));
-        }
+        // Try initializing Firebase safely without breaking on invalid keys
+        if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('DemoKey')) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                console.log("Firebase Authenticated Successfully:", user.uid);
-                setupRealtimeSync();
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth).catch(() => {}));
+                } else {
+                    signInAnonymously(auth).catch(() => {});
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        console.log("Firebase Authenticated Successfully:", user.uid);
+                        setupRealtimeSync();
+                    }
+                });
+            } catch (err) {
+                console.warn("Firebase Init Notice: Switched to Local Storage Mode", err);
             }
-        });
+        } else {
+            console.log("Firebase Notice: Running in Local Storage Mode (Offline/Demo Mode).");
+        }
 
         // Realtime Data Synchronization from Cloud Firestore
         function setupRealtimeSync() {
-            if (!currentUser) return;
-            const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-            
-            onSnapshot(studentsCol, (snapshot) => {
-                const cloudStudents = [];
-                snapshot.forEach(doc => {
-                    cloudStudents.push({ id: doc.id, ...doc.data() });
+            if (!currentUser || !db) return;
+            try {
+                const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+                onSnapshot(studentsCol, (snapshot) => {
+                    const cloudStudents = [];
+                    snapshot.forEach(doc => {
+                        cloudStudents.push({ id: doc.id, ...doc.data() });
+                    });
+                    if (cloudStudents.length > 0) {
+                        state.students = cloudStudents;
+                        renderStudents();
+                    }
+                }, (error) => {
+                    console.warn("Firestore Realtime Sync Notice:", error);
                 });
-                if (cloudStudents.length > 0) {
-                    state.students = cloudStudents;
-                    renderStudents();
-                }
-            }, (error) => {
-                console.warn("Firestore Realtime Sync Notice:", error);
-            });
+            } catch(e) {
+                console.warn("Sync Error:", e);
+            }
         }
 
-        // Global Helper to Persist Student Entries to Cloud
+        // Global Helper to Persist Student Entries to Cloud or Local Storage
         window.saveStudentToCloud = async function(studentData) {
-            if (!currentUser) return;
+            // Save locally first
+            saveLocalStudents();
+
+            if (!currentUser || !db) return;
             try {
                 const studentsCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
                 await addDoc(studentsCol, {
@@ -710,17 +720,29 @@
                 });
                 console.log("Data persisted to Cloud Firestore successfully!");
             } catch (e) {
-                console.error("Cloud Save Error:", e);
+                console.warn("Cloud Save Notice (Saved Locally):", e);
             }
+        };
+
+        window.saveFirebaseConfigLocal = function(cfgObj) {
+            localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(cfgObj));
+            alert("تم حفظ إعدادات Firebase الحقيقية بنجاح! سيتم إعادة تحميل الصفحة للتفعيل.");
+            location.reload();
         };
     </script>
 
     <!-- CORE JAVASCRIPT LOGIC -->
     <script>
+        const defaultStudents = [
+            { name: 'مالك محمود خليفة', city: 'مصر - القاهرة', pkg: 'باقة 8 حصص - 350 جنيه', wa: '+201099887766', status: 'نشط' }
+        ];
+
+        // Load students from LocalStorage if available
+        const localSavedStudents = localStorage.getItem('alfaizeen_students');
+        const initialStudents = localSavedStudents ? JSON.parse(localSavedStudents) : defaultStudents;
+
         const state = {
-            students: [
-                { name: 'مالك محمود خليفة', city: 'مصر - القاهرة', pkg: 'باقة 8 حصص - 350 جنيه', wa: '+201099887766', status: 'نشط' }
-            ],
+            students: initialStudents,
             teachers: [
                 { code: 'TCH-88', name: 'الشيخ / محمود خليفة', rate: 100, email: 'teacher@alfaizeen.com', wa: '+201000000000', wallet: 'فودافون كاش (01000...)', status: 'نشط' }
             ],
@@ -733,6 +755,10 @@
                 { title: 'تسجيل شرح أحكام التجويد', type: 'فيديو تعليمي' }
             ]
         };
+
+        function saveLocalStudents() {
+            localStorage.setItem('alfaizeen_students', JSON.stringify(state.students));
+        }
 
         window.onload = function() {
             renderStudents();
@@ -921,11 +947,11 @@
             selectEl.value = phone || '';
             openModal('whatsappModal');
         }
-
-        function pickQuickWhatsappNumber() {
-            const chosen = document.getElementById('waStudentQuickSelect').value;
-            if (chosen) {
-                document.getElementById('waRecipientNumber').value = chosen;
+        function toggleStudentStatus(idx) {
+            if (state.students[idx]) {
+                state.students[idx].status = state.students[idx].status === 'نشط' ? 'موقوف' : 'نشط';
+                saveLocalStudents();
+                renderStudents();
             }
         }
 
