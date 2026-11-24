@@ -910,11 +910,17 @@
 
         window.testFirebaseConnectionNow = async function() {
             const resultBox = document.getElementById('fbTestResultBox');
+            // Trim any leading/trailing whitespaces or invisible spaces
+            const rawApiKey = document.getElementById('fbApiKey').value.trim();
+            const rawAuthDomain = document.getElementById('fbAuthDomain').value.trim();
+            const rawProjectId = document.getElementById('fbProjectId').value.trim();
+            const rawStorageBucket = document.getElementById('fbStorageBucket').value.trim();
+
             const cfg = {
-                apiKey: document.getElementById('fbApiKey').value.trim(),
-                authDomain: document.getElementById('fbAuthDomain').value.trim(),
-                projectId: document.getElementById('fbProjectId').value.trim(),
-                storageBucket: document.getElementById('fbStorageBucket').value.trim()
+                apiKey: rawApiKey,
+                authDomain: rawAuthDomain,
+                projectId: rawProjectId,
+                storageBucket: rawStorageBucket
             };
 
             if (!resultBox) return;
@@ -922,7 +928,7 @@
 
             if (!isValidFirebaseConfig(cfg)) {
                 resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-amber-50 border-amber-300 text-amber-900';
-                resultBox.textContent = 'تنبيه: يرجى إدخال API Key صحيح و Project ID صالح أولاً قبل إجراء اختبار الاتصال السحابي.';
+                resultBox.textContent = 'تنبيه: يرجى التأكد من الـ API Key الخاص بمشروع alfaizeenan في Firebase Console دون مسافات زائدة.';
                 return;
             }
 
@@ -937,7 +943,7 @@
                 ]);
 
                 const existingApp = getApps().find(a => a.options.projectId === cfg.projectId);
-                const app = existingApp || initializeApp(cfg, 'test_' + cfg.projectId);
+                const app = existingApp || initializeApp(cfg, 'test_' + cfg.projectId + '_' + Date.now());
                 const auth = getAuth(app);
                 const db = getFirestore(app);
 
@@ -953,7 +959,11 @@
                 resultBox.textContent = `ناجح 100%: تم الاتصال بمشروع (${cfg.projectId}) وحفظ سجل اختبار (${testRef.id}) وقراءة (${snap.size}) مستندات من Firestore بنجاح.`;
             } catch (err) {
                 resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-red-50 border-red-300 text-red-900';
-                resultBox.textContent = `تعذر إتمام الاختبار السحابي: ${err && err.message ? err.message : 'تحقق من إعدادات المشروع وقواعد Firestore'}. البيانات المحلية تبقى محفوظة في LocalStorage.`;
+                if (err && err.code === 'auth/api-key-not-valid') {
+                    resultBox.textContent = `خطأ في مفتاح API Key: تأكد من نسخ الـ API Key كاملاً من صفحة إعدادات مشروع alfaizeenan في Firebase Console (Project Settings > Web App).`;
+                } else {
+                    resultBox.textContent = `تعذر إتمام الاختبار السحابي: ${err && err.message ? err.message : 'تحقق من إعدادات المشروع وقواعد Firestore'}. البيانات المحلية تبقى محفوظة في LocalStorage.`;
+                }
             }
         };
     </script>
