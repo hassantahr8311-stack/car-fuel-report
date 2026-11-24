@@ -528,22 +528,22 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block mb-1 text-gray-700">API Key *</label>
-                                        <input type="text" id="fbApiKey" required placeholder="AIzaSy..." class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                        <input type="text" id="fbApiKey" required value="AIzaSyCTJ91KeCTB9QAvrGL5U04KGzbWQLTRAdo" placeholder="AIzaSy..." class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
                                     </div>
 
                                     <div>
                                         <label class="block mb-1 text-gray-700">Auth Domain</label>
-                                        <input type="text" id="fbAuthDomain" placeholder="your-app.firebaseapp.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                        <input type="text" id="fbAuthDomain" value="alfaizeenan.firebaseapp.com" placeholder="your-app.firebaseapp.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
                                     </div>
 
                                     <div>
                                         <label class="block mb-1 text-gray-700">Project ID *</label>
-                                        <input type="text" id="fbProjectId" required placeholder="your-project-id" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                        <input type="text" id="fbProjectId" required value="alfaizeenan" placeholder="your-project-id" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
                                     </div>
 
                                     <div>
                                         <label class="block mb-1 text-gray-700">Storage Bucket</label>
-                                        <input type="text" id="fbStorageBucket" placeholder="your-app.appspot.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
+                                        <input type="text" id="fbStorageBucket" value="alfaizeenan.firebasestorage.app" placeholder="your-app.appspot.com" class="w-full p-2.5 rounded-xl border border-gray-300 outline-none font-mono">
                                     </div>
                                 </div>
 
@@ -766,10 +766,6 @@
 
     <!-- CLEAN & SAFE FIREBASE MODULE -->
     <script type="module">
-        const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
-        let firebaseConfig = null;
-
-        // Default default credentials for project 'alfaizeenan' if not manually overridden
         const defaultProjectConfig = {
             apiKey: "AIzaSyCTJ91KeCTB9QAvrGL5U04KGzbWQLTRAdo",
             authDomain: "alfaizeenan.firebaseapp.com",
@@ -777,14 +773,18 @@
             storageBucket: "alfaizeenan.firebasestorage.app"
         };
 
+        const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
+        let firebaseConfig = defaultProjectConfig;
+
         if (storedConfig) {
             try {
-                firebaseConfig = JSON.parse(storedConfig);
+                const parsed = JSON.parse(storedConfig);
+                if (parsed && parsed.apiKey && parsed.apiKey.length > 20) {
+                    firebaseConfig = parsed;
+                }
             } catch (e) {
                 firebaseConfig = defaultProjectConfig;
             }
-        } else {
-            firebaseConfig = defaultProjectConfig;
         }
 
         function isValidFirebaseConfig(cfg) {
@@ -811,14 +811,16 @@
                 : 'text-xs font-bold text-amber-800';
         }
 
+        function populateFormInputs(cfg) {
+            if (document.getElementById('fbApiKey')) document.getElementById('fbApiKey').value = cfg.apiKey || '';
+            if (document.getElementById('fbAuthDomain')) document.getElementById('fbAuthDomain').value = cfg.authDomain || '';
+            if (document.getElementById('fbProjectId')) document.getElementById('fbProjectId').value = cfg.projectId || '';
+            if (document.getElementById('fbStorageBucket')) document.getElementById('fbStorageBucket').value = cfg.storageBucket || '';
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const activeCfg = firebaseConfig || defaultProjectConfig;
-            if (document.getElementById('fbApiKey')) {
-                document.getElementById('fbApiKey').value = activeCfg.apiKey || '';
-                document.getElementById('fbAuthDomain').value = activeCfg.authDomain || '';
-                document.getElementById('fbProjectId').value = activeCfg.projectId || '';
-                document.getElementById('fbStorageBucket').value = activeCfg.storageBucket || '';
-            }
+            populateFormInputs(activeCfg);
 
             if (isValidFirebaseConfig(activeCfg)) {
                 updateFirebaseStatusLabel(`مشروع (${activeCfg.projectId}) جاهز للاختبار والتفعيل`, true);
