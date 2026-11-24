@@ -773,18 +773,25 @@
             storageBucket: "alfaizeenan.firebasestorage.app"
         };
 
+        // تجديد التخزين المحلي فوراً إذا كانت المفاتيح قديمة أو ناقصة
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         let firebaseConfig = defaultProjectConfig;
 
         if (storedConfig) {
             try {
                 const parsed = JSON.parse(storedConfig);
-                if (parsed && parsed.apiKey && parsed.apiKey.length > 20) {
+                if (parsed && parsed.projectId === "alfaizeenan" && parsed.apiKey && parsed.apiKey.length > 20) {
                     firebaseConfig = parsed;
+                } else {
+                    localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(defaultProjectConfig));
+                    firebaseConfig = defaultProjectConfig;
                 }
             } catch (e) {
+                localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(defaultProjectConfig));
                 firebaseConfig = defaultProjectConfig;
             }
+        } else {
+            localStorage.setItem('alfaizeen_firebase_cfg', JSON.stringify(defaultProjectConfig));
         }
 
         function isValidFirebaseConfig(cfg) {
@@ -812,10 +819,11 @@
         }
 
         function populateFormInputs(cfg) {
-            if (document.getElementById('fbApiKey')) document.getElementById('fbApiKey').value = cfg.apiKey || '';
-            if (document.getElementById('fbAuthDomain')) document.getElementById('fbAuthDomain').value = cfg.authDomain || '';
-            if (document.getElementById('fbProjectId')) document.getElementById('fbProjectId').value = cfg.projectId || '';
-            if (document.getElementById('fbStorageBucket')) document.getElementById('fbStorageBucket').value = cfg.storageBucket || '';
+            const active = cfg || defaultProjectConfig;
+            if (document.getElementById('fbApiKey')) document.getElementById('fbApiKey').value = active.apiKey || defaultProjectConfig.apiKey;
+            if (document.getElementById('fbAuthDomain')) document.getElementById('fbAuthDomain').value = active.authDomain || defaultProjectConfig.authDomain;
+            if (document.getElementById('fbProjectId')) document.getElementById('fbProjectId').value = active.projectId || defaultProjectConfig.projectId;
+            if (document.getElementById('fbStorageBucket')) document.getElementById('fbStorageBucket').value = active.storageBucket || defaultProjectConfig.storageBucket;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
