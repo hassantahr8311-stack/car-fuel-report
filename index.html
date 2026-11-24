@@ -928,7 +928,7 @@
 
             if (!isValidFirebaseConfig(cfg)) {
                 resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-amber-50 border-amber-300 text-amber-900';
-                resultBox.textContent = 'تنبيه: يرجى التأكد من الـ API Key الخاص بمشروع alfaizeenan في Firebase Console دون مسافات زائدة.';
+                resultBox.textContent = 'تنبيه: تأكد من لصق مفتاح API Key الصحيح لمشروع alfaizeenan من Firebase Console ثم أعد المحاولة.';
                 return;
             }
 
@@ -958,11 +958,14 @@
                 resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-emerald-50 border-emerald-300 text-emerald-900';
                 resultBox.textContent = `ناجح 100%: تم الاتصال بمشروع (${cfg.projectId}) وحفظ سجل اختبار (${testRef.id}) وقراءة (${snap.size}) مستندات من Firestore بنجاح.`;
             } catch (err) {
-                resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-red-50 border-red-300 text-red-900';
-                if (err && err.code === 'auth/api-key-not-valid') {
-                    resultBox.textContent = `خطأ في مفتاح API Key: تأكد من نسخ الـ API Key كاملاً من صفحة إعدادات مشروع alfaizeenan في Firebase Console (Project Settings > Web App).`;
+                const errCode = (err && err.code) ? String(err.code) : '';
+                const errMsg = (err && err.message) ? String(err.message) : '';
+                resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-amber-50 border-amber-300 text-amber-900';
+
+                if (errCode.includes('api-key-not-valid') || errMsg.includes('api-key-not-valid')) {
+                    resultBox.textContent = 'ملاحظة حول مفتاح API: يرفض خادم المصادقة المفتاح الحالي؛ انسخ الـ API Key مباشرة من Firebase Console ← إعدادات المشروع ← تطبيقاتك، والبيانات المحلية تبقى محفوظة في LocalStorage.';
                 } else {
-                    resultBox.textContent = `تعذر إتمام الاختبار السحابي: ${err && err.message ? err.message : 'تحقق من إعدادات المشروع وقواعد Firestore'}. البيانات المحلية تبقى محفوظة في LocalStorage.`;
+                    resultBox.textContent = `تعذر إتمام الاختبار السحابي (${errCode || 'تنبيه'}): تحقق من تفعيل Authentication (Anonymous) وقاعدة Firestore في مشروع alfaizeenan. البيانات المحلية محفوظة في LocalStorage.`;
                 }
             }
         };
