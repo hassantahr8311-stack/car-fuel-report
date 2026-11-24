@@ -768,12 +768,23 @@
     <script type="module">
         const storedConfig = localStorage.getItem('alfaizeen_firebase_cfg');
         let firebaseConfig = null;
+
+        // Default default credentials for project 'alfaizeenan' if not manually overridden
+        const defaultProjectConfig = {
+            apiKey: "AIzaSyCTJ91KeCTB9QAvrGL5U04KGzbWQLTRAdo",
+            authDomain: "alfaizeenan.firebaseapp.com",
+            projectId: "alfaizeenan",
+            storageBucket: "alfaizeenan.firebasestorage.app"
+        };
+
         if (storedConfig) {
             try {
                 firebaseConfig = JSON.parse(storedConfig);
             } catch (e) {
-                firebaseConfig = null;
+                firebaseConfig = defaultProjectConfig;
             }
+        } else {
+            firebaseConfig = defaultProjectConfig;
         }
 
         function isValidFirebaseConfig(cfg) {
@@ -783,7 +794,6 @@
             if (!key || !projectId) return false;
             if (
                 key.includes('DemoKey') ||
-                key.includes('AIzaSyDemoKey') ||
                 key.includes('YOUR_API_KEY') ||
                 key.length < 25
             ) {
@@ -802,12 +812,16 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            if (isValidFirebaseConfig(firebaseConfig)) {
-                document.getElementById('fbApiKey').value = firebaseConfig.apiKey || '';
-                document.getElementById('fbAuthDomain').value = firebaseConfig.authDomain || '';
-                document.getElementById('fbProjectId').value = firebaseConfig.projectId || '';
-                document.getElementById('fbStorageBucket').value = firebaseConfig.storageBucket || '';
-                updateFirebaseStatusLabel('جاري التحقق من الاتصال السحابي بـ Firebase...', true);
+            const activeCfg = firebaseConfig || defaultProjectConfig;
+            if (document.getElementById('fbApiKey')) {
+                document.getElementById('fbApiKey').value = activeCfg.apiKey || '';
+                document.getElementById('fbAuthDomain').value = activeCfg.authDomain || '';
+                document.getElementById('fbProjectId').value = activeCfg.projectId || '';
+                document.getElementById('fbStorageBucket').value = activeCfg.storageBucket || '';
+            }
+
+            if (isValidFirebaseConfig(activeCfg)) {
+                updateFirebaseStatusLabel(`مشروع (${activeCfg.projectId}) جاهز للاختبار والتفعيل`, true);
             } else {
                 updateFirebaseStatusLabel('الوضع المحلي (LocalStorage) نشط — أدخل بيانات مشروع Firebase لتفعيل الربط السحابي', false);
             }
@@ -825,9 +839,9 @@
                     const db = getFirestore(app);
                     signInAnonymously(auth).then(() => {
                         window.firebaseDb = db;
-                        updateFirebaseStatusLabel(`متصل سحابياً بـ Firebase (${firebaseConfig.projectId})`, true);
+                        updateFirebaseStatusLabel(`متصل سحابياً بمشروع Firebase (${firebaseConfig.projectId}) بنجاح!`, true);
                     }).catch((err) => {
-                        updateFirebaseStatusLabel(`تعذر تسجيل الدخول السحابي: ${err.message}`, false);
+                        updateFirebaseStatusLabel(`مفاتيح alfaizeenan محددة (في انتظار تفعيل Anonymous): ${err.message}`, false);
                     });
                 } catch (e) {
                     updateFirebaseStatusLabel('تعذر تهيئة Firebase، يتم العمل محلياً.', false);
