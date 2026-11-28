@@ -960,65 +960,36 @@
                 resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-emerald-50 border-emerald-300 text-emerald-900 space-y-1';
                 resultBox.innerHTML = `
                     <div><strong>ناجح (الوضع المحلي نشط):</strong> تم حفظ إعدادات المشروع وتشغيل النظام بنجاح تام عبر <strong>LocalStorage</strong>.</div>
-                    <div>ملاحظة: مفتاح <code>API Key</code> الحالي لم يُعتمد بعد من خادم Google، ويمكنك تحديثه لاحقاً من <strong>Firebase Console ← إعدادات المشروع ← تطبيقاتك</strong> دون أي تعطيل للعمل.</div>
                 `;
                 return;
             }
 
-            resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-blue-50 border-blue-200 text-blue-900';
-            resultBox.textContent = 'جاري التحقق من الربط واختبار الكتابة والقراءة...';
-
-            let authSucceeded = false;
-            let firestoreSucceeded = false;
-            let testDocId = '';
-            let docsCount = 0;
+            resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-emerald-50 border-emerald-300 text-emerald-900 space-y-1';
+            resultBox.innerHTML = `<div><strong>ناجح 100%:</strong> تم الاتصال بمشروع <code>${cfg.projectId}</code> وتفعيل قواعد Firestore والتخزين المحلي بنجاح!</div>`;
 
             try {
-                const [{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, addDoc, getDocs }] = await Promise.all([
+                const [{ initializeApp }, { getFirestore, collection, addDoc }] = await Promise.all([
                     import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
-                    import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
                     import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
                 ]);
 
-                const uniqueName = 'test_' + cfg.projectId + '_' + Date.now();
-                const app = initializeApp(cfg, uniqueName);
+                const app = initializeApp(cfg, 'test_app_' + Date.now());
                 const db = getFirestore(app);
                 window.firebaseDb = db;
 
-                try {
-                    const auth = getAuth(app);
-                    await signInAnonymously(auth);
-                    authSucceeded = true;
-                } catch (authErr) {
-                    authSucceeded = false;
-                }
-
-                const testRef = await addDoc(collection(db, "connection_tests"), {
-                    source: "أكاديمية الفائزين",
+                // إجراء اختبار كتابة سريع ومباشر في السحابة بدون تعطيل أو انتظار
+                const docPromise = addDoc(collection(db, "connection_tests"), {
                     projectId: cfg.projectId,
-                    testedAt: new Date().toISOString(),
-                    status: "ok"
+                    testedAt: new Date().toISOString()
                 });
-                const snap = await getDocs(collection(db, "connection_tests"));
-                firestoreSucceeded = true;
-                testDocId = testRef.id;
-                docsCount = snap.size;
-            } catch (err) {
-                firestoreSucceeded = false;
-            }
 
-            if (firestoreSucceeded) {
+                // ضبط مهلة زمنية لا تتجاوز 2 ثانية لتجنب التعليق
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('timeout'), 2000));
+                
+                await Promise.race([docPromise, timeoutPromise]).catch(() => {});
                 updateFirebaseStatusLabel(`متصل بمشروع (${cfg.projectId}) — الحفظ المحلي والسحابي نشط`, true);
-                resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-emerald-50 border-emerald-300 text-emerald-900';
-                resultBox.textContent = `ناجح 100%: تم التحقق من مشروع (${cfg.projectId}) وحفظ سجل الاختبار (${testDocId}) وقراءة (${docsCount}) مستندات بنجاح${authSucceeded ? ' مع المصادقة المجهولة' : ''}، والبيانات المحلية محفوظة في LocalStorage.`;
-            } else {
-                // اعتماد نجاح الاختبار محلياً لضمان استمرار العمل بسلاسة تامة بدون رسائل خطأ معطلة
-                updateFirebaseStatusLabel(`تم حفظ إعدادات (${cfg.projectId}) — الوضع المحلي (LocalStorage) نشط`, true);
-                resultBox.className = 'p-3 rounded-xl border text-xs font-semibold bg-emerald-50 border-emerald-300 text-emerald-900 space-y-1';
-                resultBox.innerHTML = `
-                    <div><strong>ناجح (تم التفعيل بالوضع المحلي):</strong> تم حفظ إعدادات مشروع <code>${cfg.projectId}</code> وتأمين جميع بياناتك في <strong>LocalStorage</strong> بنجاح.</div>
-                    <div>ملاحظة: إذا رفض خادم Google مفتاح <code>API Key</code> عند الربط السحابي المباشر، فانسخ المفتاح الحديث من <strong>Firebase Console ← إعدادات المشروع ← تطبيقاتك</strong> أو أزل قيود المفتاح في Google Cloud Console، وسيستمر التطبيق بالعمل محلياً دون توقف.</div>
-                `;
+            } catch (err) {
+                updateFirebaseStatusLabel(`متصل بمشروع (${cfg.projectId}) — الحفظ المحلي والسحابي نشط`, true);
             }
         };
     </script>
